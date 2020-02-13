@@ -6,6 +6,6 @@ err_report() {
 }
 
 trap err_report ERR
-source $script_dir/sshkey.sh
-ssh -i "$credfile" $user@$host
+source $script_dir/getkey.sh
+ssh -i "$credfile" -A $user@$host
 rm ${credfile}
