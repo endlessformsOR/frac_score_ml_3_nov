@@ -1,0 +1,4 @@
+data
+legend-live
+*.ipynb_checkpoints*
+__pycache__
