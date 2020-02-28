@@ -2,7 +2,6 @@
 
 # Download relative pressure sensor data
 
-#!/bin/bash
 if [ "$#" -ne 5 ]; then
 	echo -e "Usage:\n\thigh_freq_data.sh <sensor_id> <start_timestamp> <end_timestamp> <environment> <destination_file>"
 	exit 0
@@ -16,6 +15,8 @@ destination=$5
 
 args="\"$sensor_id\" \"$start_time\" \"$end_time\" tmp_file.npz \"$environment\" \"single-npz\""
 cmd="lein audio $args"
+
+source scripts/core-access
 
 cd "legend-live"
 echo $cmd
