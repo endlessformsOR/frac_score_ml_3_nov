@@ -9,16 +9,18 @@ import io
 import boto3
 import multiprocessing as mp
 
+import csv
+
+
 S3_BUCKET = "sensor-data-live"
 ACCESS_KEY = os.environ['AWS_ACCESS_KEY_ID']
 SECRET_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
 
-
-
 S3_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 NPZ_TIME_FORMAT = S3_TIME_FORMAT + ".npz"
 
-
+#define these globally so we can parellize fetching data fns
+#otherwise get cannot pickle class errors
 s3_resource = boto3.resource('s3',
                              aws_access_key_id=ACCESS_KEY,
                              aws_secret_access_key=SECRET_KEY)
@@ -26,6 +28,56 @@ s3_client = boto3.client('s3',
                          aws_access_key_id=ACCESS_KEY,
                          aws_secret_access_key=SECRET_KEY)
 s3_bucket = s3_resource.Bucket(S3_BUCKET)
+
+
+class FlatRingBuffer():
+    "Numpy backed buffer that stores data as one flat array"
+    def __init__(self, capacity, dtype=np.float32, initial_value=0):
+        self.capacity = int(capacity)
+        self._idx = 0
+        self.full = False
+        self._values = np.full(self.capacity, initial_value, dtype=dtype)
+
+    def _add_vector(self, vector):
+        #vector cant be directly copied into buffer
+        if len(vector) + self._idx > self.capacity:
+            self.full = True
+            self._values = np.concatenate((self._values, vector))
+            self._values = self._values[-self.capacity:]
+            self._idx = min(len(vector) + self._idx, self.capacity - 1)
+
+        #copy vector directly into buffer
+        else:
+            self._values[self._idx: self._idx + len(vector)] = vector
+            #ensure index doesnt overflow capacity
+            self._idx = min(len(vector) + self._idx, self.capacity - 1)
+
+            if self._idx >= self.capacity -1:
+                self.full = True
+
+
+    def _add_scalar(self, scalar):
+        if self.full:
+            self._values = np.roll(self._values, -1)
+            self._values[self._idx-1] = scalar
+
+        else:
+            self._values[self._idx] = scalar
+            self._idx += 1
+            if (self._idx) == self.capacity:
+                self.full = True
+
+    def add(self, v):
+        if np.isscalar(v):
+            self._add_scalar(v)
+        else:
+            self._add_vector(v)
+
+    def values(self):
+        return self._values[0:self._idx]
+
+    def size(self):
+        return self._idx + 1
 
 
 def datetime_to_s3_time_bucket(dt):
@@ -97,65 +149,33 @@ def interval_to_flat_array(sensor_id, start, end, sample_rate=57000):
     num_samples = sample_rate * num_seconds
     buffer = FlatRingBuffer(num_samples)
 
+    t0 = time.time()
+    print("Downloading files...")
     with mp.Pool(64) as pool:
         files = pool.starmap(timebucket_files, [(sensor_id, timebucket) for timebucket in timebuckets])
         files = [val for sublist in files for val in sublist]
-        files_within_interval = list(filter(lambda f: within_interval(f), files))
+        files_within_interval = [f for f in files if within_interval(f)]
+        #files_within_interval = list(filter(lambda f: within_interval(f), files))
         data  = pool.map(get_npz, files)
+    print("Files downloaded in ", time.time() - t0)
 
     for d in data:
         buffer.add(d)
 
     return buffer
 
-class FlatRingBuffer():
-    "Numpy backed buffer that stores data as one flat array"
-    def __init__(self, capacity, dtype=np.float32, initial_value=0):
-        self.capacity = int(capacity)
-        self._idx = 0
-        self.full = False
-        self._values = np.full(self.capacity, initial_value, dtype=dtype)
 
-    def _add_vector(self, vector):
-        #vector cant be directly copied into buffer
-        if len(vector) + self._idx > self.capacity:
-            self.full = True
-            self._values = np.concatenate((self._values, vector))
-            self._values = self._values[-self.capacity:]
-            self._idx = min(len(vector) + self._idx, self.capacity - 1)
+def load_csv(fpath):
+    with open(fpath) as csvfile:
+        reader = csv.DictReader(csvfile)
+        return list(reader)
 
-        #copy vector directly into buffer
-        else:
-            self._values[self._idx: self._idx + len(vector)] = vector
-            #ensure index doesnt overflow capacity
-            self._idx = min(len(vector) + self._idx, self.capacity - 1)
-
-            if self._idx >= self.capacity -1:
-                self.full = True
-
-
-    def _add_scalar(self, scalar):
-        if self.full:
-            self._values = np.roll(self._values, -1)
-            self._values[self._idx-1] = scalar
-
-        else:
-            self._values[self._idx] = scalar
-            self._idx += 1
-            if (self._idx) == self.capacity:
-                self.full = True
-
-    def add(self, v):
-        if np.isscalar(v):
-            self._add_scalar(v)
-        else:
-            self._add_vector(v)
-
-    def values(self):
-        return self._values[0:self._idx]
-
-    def size(self):
-        return self._idx + 1
+def csv_row_to_dynamic_data(csv, rownum):
+    row = csv[rownum]
+    start_time = parse_time_string_with_colon_offset(row['START_TIME'])
+    end_time = parse_time_string_with_colon_offset(row['END_TIME'])
+    sensor_id = row['DYNAMIC_SENSOR_ID']
+    return interval_to_flat_array(sensor_id, start_time, end_time)
 
 
 class DataPuller():
