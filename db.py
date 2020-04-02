@@ -1,9 +1,12 @@
 import os, sys, json
 from datetime import datetime
+import subprocess
+
 import numpy as np
 import pandas as pd
 import pandas.io.sql as psql
 import psycopg2 as pg
+import psycopg2.extras
 
 LEGEND_LIVE_DIR="legend-live"
 
@@ -28,6 +31,8 @@ def query(q, args=None):
     #cur = conn.cursor(cursor_factory=DictCursor)
     cur = conn.cursor(cursor_factory = pg.extras.RealDictCursor)
 
+    #print(q)
+
     try:
         if args:
             cur.execute(q, args)
@@ -44,6 +49,7 @@ def query(q, args=None):
 
 def query_dataframe(q, args=None):
     global conn
+    #print(q)
     try:
         if args:
             df = pd.read_sql(q, conn, params=args)
@@ -83,10 +89,14 @@ ORDER BY
     return query(q)
 
 
+def all_wells():
+    return query_dataframe("select name, number, api from monitoring.wells")
+
 def well_by_name(name, number):
     q = f"""
-    SELECT * FROM wells
-    WHERE wells.name LIKE '%{name}%' AND number = '{number}'"""
+    SELECT * FROM monitoring.wells
+    WHERE LOWER(wells.name) LIKE '%{name.lower()}%'
+        AND LOWER(number) = '{number.lower()}'"""
     return query(q)[0]
 
 
@@ -102,17 +112,17 @@ def well_sensors(api, pressure_type=None):
         q = f"""
         SELECT sensors.id, sensors.created_at, wells.api, pad_id, serial, config,
         sensor_type_id, sensor_model_id, pressure_type
-        FROM wells as wells
-        JOIN sensors as sensors ON sensors.well_id = wells.id
-        JOIN sensor_models as sensor_models ON sensors.sensor_model_id = sensor_models.id
+        FROM monitoring.wells as wells
+        JOIN monitoring.sensors as sensors ON sensors.well_id = wells.id
+        JOIN monitoring.sensor_models as sensor_models ON sensors.sensor_model_id = sensor_models.id
         WHERE api = '{api}' AND pressure_type = '{pressure_type}'"""
     else:
         q = f"""
         SELECT sensors.id, sensors.created_at, wells.api, pad_id, serial, config,
         sensor_type_id, sensor_model_id, pressure_type
-        FROM wells
-        JOIN sensors ON sensors.well_id = wells.id
-        JOIN sensor_models ON sensors.sensor_model_id = sensor_models.id
+        FROM monitoring.wells
+        JOIN monitoring.sensors ON sensors.well_id = wells.id
+        JOIN monitoring.sensor_models ON sensors.sensor_model_id = sensor_models.id
         WHERE api = '{api}'"""
     return query(q)
 
@@ -139,25 +149,26 @@ def sensor_data(sensor_id, start_time=None, end_time=None, val='max', period=Non
         q = f"""
         SELECT time_bucket('{period} seconds', time) as period,
         {agg_fn}({val}) as value
-        FROM sensor_data {where}
+        FROM monitoring.sensor_data {where}
         GROUP BY period
         ORDER BY period ASC
         """
         df = query_dataframe(q)
-        return df.set_index('period')
+        df.rename(columns={'period': 'time'}, inplace=True)
+        return df.set_index('time')
     else:
         q = f"""
-        SELECT {val} as value
-        FROM sensor_data {where}
+        SELECT time, {val} as value
+        FROM monitoring.sensor_data {where}
         ORDER BY time ASC
         """
         df = query_dataframe(q)
-        return df
+        return df.set_index('time')
 
 
-def relative_sensor_data_file(sensor_id, start_time, end_time, path, environment='staging'):
-    script_path = os.path.abspath("scripts/relative_sensor_data.sh")
-    cmd = [script_path, sensor_id, start_time, end_time, environment, path]
+def dynamic_sensor_data_file(sensor_id, start_time, end_time, path, environment='staging'):
+    script_path = os.path.abspath("scripts/dynamic_sensor_data.sh")
+    cmd = [script_path, sensor_id, start_time.isoformat(), end_time.isoformat(), environment, path]
     print("cmd: ", ' '.join(cmd))
     process = subprocess.Popen(cmd,
                                #cwd=LEGEND_LIVE_DIR,
@@ -173,9 +184,9 @@ def load_data_file(path):
     return npy['arr_0']
 
 
-def relative_sensor_data(sensor_id, start_time, end_time,
+def dynamic_sensor_data(sensor_id, start_time, end_time,
                          environment='staging', tmp_path='tmp_data.npz'):
-    relative_sensor_data_file(sensor_id, start_time, end_time, tmp_path, environment)
+    dynamic_sensor_data_file(sensor_id, start_time, end_time, tmp_path, environment)
     return load_data_file(tmp_path)
 
 

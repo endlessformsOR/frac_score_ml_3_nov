@@ -56,14 +56,36 @@ def plot_range_events(x, stages):
     plt.show()
 
 
-# TODO: convert start/stop to timestamps?
+def merge_close_events(events, min_distance):
+    # Now merge pumpdowns that are too close, because they probably just paused
+    # for a moment.
+    merged = []
+    already_added = False
+    for i in range(len(events)-1):
+        if already_added:
+            already_added = False
+            continue
+
+        a = events[i]
+        b = events[i+1]
+        if (b['start'] - a['end']) < PUMPDOWN_MIN_DISTANCE:
+            event = {'start': a['start'], 'end': b['end']}
+            merged.append(event)
+            already_added = True
+        else:
+            merged.append(a)
+    return merged
+
+
+STAGE_MIN_DISTANCE = 60 # 1 hour at 60 second periods
+
 def detect_stages(x):
     smoothing_window_size = 71
     polynomial_order = 3
     x = signal.savgol_filter(x, smoothing_window_size, polynomial_order)
     peaks, peak_info = signal.find_peaks(x,
-            prominence=2000,
-            wlen=300)
+            prominence=1000,
+            wlen=400)
 
     events = []
     for start, end in zip(peak_info['left_bases'], peak_info['right_bases']):
@@ -71,15 +93,21 @@ def detect_stages(x):
             'start': start,
             'end': end
             })
-    return events
+
+    merged = merge_close_events(events, STAGE_MIN_DISTANCE)
+    return merged
 
 
-def detect_pumpdown(x):
+PUMPDOWN_MIN_DISTANCE = 60 # 1 hour at 60 second periods
+
+def detect_pumpdowns(x):
+    '''Detect pumpdowns in static pressure data.
+    NOTE: expects data sampled at 60 second periods.'''
     peaks, peak_info = signal.find_peaks(x,
-            prominence=500,
-            #width=(5, 100),
-            height=(4000, 6500),
-            wlen=50)
+            prominence=(30, 1000),
+            width=(5, 90),
+            height=(2000, 6500),
+            wlen=90)
 
     events = []
     for start, end in zip(peak_info['left_bases'], peak_info['right_bases']):
@@ -87,4 +115,16 @@ def detect_pumpdown(x):
             'start': start,
             'end': end
             })
-    return events
+
+    merged = merge_close_events(events, PUMPDOWN_MIN_DISTANCE)
+    return merged
+
+def pumpdown_length_histogram(pumpdowns):
+    '''Plot a histogram of pumpdown lengths.'''
+    pumpdown_lens = []
+    for event in pumpdowns:
+        pumpdown_lens.append(event['end'] - event['start'])
+    plt.figure(figsize=(8,4))
+    plt.hist(pumpdown_lens)
+
+
