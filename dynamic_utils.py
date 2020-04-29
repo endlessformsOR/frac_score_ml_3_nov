@@ -22,60 +22,6 @@ import uuid
 from numpy_ringbuffer import RingBuffer
 
 
-class DynamicRingBuffer(RingBuffer):
-    """
-    Creates a numpy backed ringbuffer which is able to append entire numpy vectors
-
-    Parameters
-    ----------
-    capacity: int
-	The maximum capacity of the ring buffer
-    dtype: data-type, optional
-	Desired type of buffer elements. Use a type like (float, 2) to
-	produce a buffer with shape (N, 2)
-    allow_overwrite: bool
-	If false, throw an IndexError when trying to append to an already
-	full buffer
-    """
-    def __init__(self, capacity, dtype=np.float32, allow_overwrite=True):
-        super().__init__(capacity, dtype, allow_overwrite)
-
-    def append(self, v):
-        if np.isscalar(v):
-            RingBuffer.append(self,v)
-        else:
-            self.append_vector(v)
-
-
-    def append_vector(self, v):
-        v = v[:] #be able to append other RingBuffers
-
-        #vector cant be directly copied into buffer
-        if len(v) + self._right_index > self._capacity:
-            self._arr = np.concatenate((self._arr, v))
-            self._arr = self._arr[-self._capacity:]
-            self._tail += len(v)
-            self._fix_indices()
-
-        #copy vector directly into buffer
-        else:
-            print(v)
-            self._arr[self._right_index: self._right_index + len(v)] = v
-            self._right_index += len(v)
-            self._fix_indices()
-
-    def popleftn(self, n):
-        if len(self) < n:
-            raise IndexError("pop from an empty or too small RingBuffer")
-        res = self._arr[self._left_index: self._left_index + n]
-        self._left_index += n
-        self._fix_indices()
-        return res
-
-
-    def values(self):
-        return self._unwrap()
-
 
 
 S3_BUCKET = "sensor-data-staging"
@@ -95,6 +41,64 @@ s3_client = boto3.client('s3',
                          aws_secret_access_key=SECRET_KEY)
 s3_bucket = s3_resource.Bucket(S3_BUCKET)
 
+
+class DynamicRingBuffer(RingBuffer):
+    """
+    Creates a numpy backed ringbuffer which is able to append entire numpy vectors
+
+    Parameters
+    ----------
+    capacity: int
+	The maximum capacity of the ring buffer
+    dtype: data-type, optional
+	Desired type of buffer elements. Use a type like (float, 2) to
+	produce a buffer with shape (N, 2)
+    allow_overwrite: bool
+	If false, throw an IndexError when trying to append to an already
+	full buffer
+    """
+    def __init__(self, capacity, dtype=np.float32, allow_overwrite=True):
+        super().__init__(capacity, dtype, allow_overwrite)
+
+
+    def append(self, v):
+        if np.isscalar(v):
+            RingBuffer.append(self,v)
+        else:
+            self.append_vector(v)
+
+
+    def append_vector(self, v):
+        v = v[:] #be able to append other RingBuffers
+
+        #vector cant be directly copied into buffer
+        if len(v) + len(self) > self._capacity:
+            #insert overlap
+            num_overlap = self._capacity - len(self)
+            self._arr[len(self) : self._capacity] = v[:num_overlap]
+
+            #concat and reshape excess
+            self._arr = np.concatenate((self._arr, v[num_overlap:]))
+            self._arr = self._arr[-self._capacity:]
+
+            #reset indices
+            self._right_index = self._capacity
+            self._left_index = 0
+
+
+        #copy vector directly into buffer
+        else:
+            self._arr[self._right_index: self._right_index + len(v)] = v
+            self._right_index += len(v)
+            self._fix_indices()
+
+    def popleftn(self, n):
+        if len(self) < n:
+            raise IndexError("pop from an empty or too small RingBuffer")
+        res = self._arr[self._left_index: self._left_index + n]
+        self._left_index += n
+        self._fix_indices()
+        return res
 
 
 class FlatRingBuffer():
