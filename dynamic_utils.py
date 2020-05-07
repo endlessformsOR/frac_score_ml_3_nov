@@ -67,15 +67,16 @@ class DynamicRingBuffer(RingBuffer):
         else:
             self.append_vector(v)
 
-
+    """
     def append_vector(self, v):
         v = v[:] #be able to append other RingBuffers
 
-        #vector cant be directly copied into buffer
-        if len(v) + len(self) > self._capacity:
+        #vector cant be directly copied into end of buffer nicely
+        #if len(v) + len(self) > self._capacity:
+        if len(v) > self._capacity - self._right_index:
             #insert overlap
-            num_overlap = self._capacity - len(self)
-            self._arr[len(self) : self._capacity] = v[:num_overlap]
+            num_overlap = self._capacity - self._right_index
+            self._arr[self._right_index : self._capacity] = v[:num_overlap]
 
             #concat and reshape excess
             self._arr = np.concatenate((self._arr, v[num_overlap:]))
@@ -88,17 +89,54 @@ class DynamicRingBuffer(RingBuffer):
 
         #copy vector directly into buffer
         else:
+            print("Len", len(self._arr), len(self), len(v), self._right_index)
             self._arr[self._right_index: self._right_index + len(v)] = v
             self._right_index += len(v)
             self._fix_indices()
+    """
+
+    def append_vector(self, v):
+        v = v[:] #be able to append other RingBuffers
+
+        num_fits_in_end = min(len(v), self._capacity - self._right_index)
+        num_doesnt_fit = len(v) - num_fits_in_end
+
+        self._arr[self._right_index : self._right_index + num_fits_in_end] = v[:num_fits_in_end]
+        self._right_index += num_fits_in_end
+
+
+        if num_doesnt_fit > 0:
+            self._arr = np.concatenate((self._arr, v[num_fits_in_end:]))
+            self._arr = self._arr[-self._capacity:]
+            self._right_index = self._capacity
+            self._left_index = 0
+
+
 
     def popleftn(self, n):
         if len(self) < n:
             raise IndexError("pop from an empty or too small RingBuffer")
-        res = self._arr[self._left_index: self._left_index + n]
+
+        if n == 1:
+            res = self.popleft()
+
+        elif n < self._capacity - self._left_index:
+            res = self[self._left_index: self._left_index + n]
+
+        else:
+            left = self._arr[self._left_index : min(self._right_index, self._capacity)]
+            leftover = int(n - len(left))
+            right = self._arr[:leftover]
+            res = np.concatenate((left, right))
+
         self._left_index += n
         self._fix_indices()
+
         return res
+
+#d = DynamicRingBuffer(4)
+#d.append(np.array([1,2]))
+#d.append(np.array([3,4,5]))
 
 
 class FlatRingBuffer():
