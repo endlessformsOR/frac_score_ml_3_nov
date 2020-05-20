@@ -20,6 +20,10 @@ import uuid
 
 from dynamic_utils import DynamicRingBuffer, parse_time_string_with_colon_offset, interval_to_buckets, timebucket_files, s3_path_to_datetime, get_npz
 
+#Makes postgres UUID[] type return as list of strings
+psycopg2.extensions.register_type(
+    psycopg2.extensions.new_array_type(
+        (2951,), 'UUID[]', psycopg2.STRING))
 
 def db_query(q, args=None, fetch_results=True):
     with pg.connect(dbname=os.environ['db_name'],
@@ -158,6 +162,7 @@ class ModelData():
             self.retries += 1
 
     """
+    #TODO: historical mode that just increments by frequency every time
     def increment_interval(self, num_new_files=0):
         "Updates window start and end"
         assert self.start and self.end
@@ -270,7 +275,7 @@ class ModelData():
             self.static_buffer.append(res)
         return len(results)
 
-
+    #TODO: historical mode option that just increments interval
     def update_data(self):
         num_new_files = None
 
@@ -380,17 +385,28 @@ class ModelRunner():
 
 
         self.frequency = config["frequency"]
-        self.api = config["api"]
+        #self.api = config["api"]
+        self.well_id = config["well_id"]
         self.window_size = config["window_size"]
         self.job_id = config["id"]
-        self.monitoring_group_id = config['monitoring_group_id']
+        #self.monitoring_group_id = config['monitoring_group_id']
+        self.hub_id = config['hub_id']
         self.model = model
         #self.delay = delay
 
-        sensors = well_sensors(self.api)
-        print(sensors)
-        self.static_id = sensors['static']
-        self.dynamic_id = sensors['dynamic']
+        #sensors = well_sensors(self.api)
+        #self.static_id = sensors['static']
+        #self.dynamic_id = sensors['dynamic']
+
+        static_ids = config.get('static_sensor_ids')
+        dynamic_ids = config.get('dynamic_sensor_ids')
+
+        if static_ids:
+            self.static_id = static_ids[0]
+
+        if dynamic_ids:
+            self.dynamic_id = dynamic_ids[0]
+
 
         if not initialization_time:
             initialization_time =  datetime.now().astimezone(pytz.utc).replace(microsecond=0)
@@ -441,12 +457,12 @@ class ModelRunner():
         results = self.infer()
         #results = self.update_data_and_infer()
         q = """INSERT INTO monitoring.events
-                 (id, api, event, start_time, end_time)
+                 (id, well_id, event, start_time, end_time)
                  VALUES (%s, %s, %s, %s, %s)"""
 
 
         sample_args = (str(uuid.uuid4()),
-                       self.api,
+                       self.well_id,
                        "test event",
                        datetime.now().astimezone(pytz.utc),
                        datetime.now().astimezone(pytz.utc) - timedelta(seconds=60))
@@ -464,7 +480,7 @@ class ModelRunner():
         if results:
             event_id = str(uuid.uuid4())
             args = (event_id,
-                    self.api,
+                    self.well_id,
                     results.get('event'),
                     results.get('start_time'),
                     results.get('end_time'))
@@ -487,6 +503,18 @@ def monitoring_group_status(monitoring_group_id):
         return None
 
 
+def get_hub_status(hub_id):
+    q = """
+        SELECT status
+        FROM monitoring.hubs
+        WHERE id = %s"""
+    result = db_query(q, (hub_id,))
+    if len(result) > 0:
+        return result[0]['status']
+    else:
+        return None
+
+
 def run_threaded(job_func):
     """Used to run jobs in separate thread so jobs do not block the main thread enusring jobs are launched on time
        https://schedule.readthedocs.io/en/stable/faq.html#how-to-execute-jobs-in-parallel"""
@@ -496,7 +524,7 @@ def run_threaded(job_func):
 
 def model_runner_process(runnable_model):
     """To be ran in a separate process.
-       Runs model peridoically until monitoring_group marked complete.
+       Runs model peridoically until hub marked complete.
        Runs model in seperate thread from process main thread to prevent blocking the scheduler
        https://schedule.readthedocs.io/en/stable/faq.html#how-to-execute-jobs-in-parallel"""
     frequency = runnable_model.frequency
@@ -510,19 +538,19 @@ def model_runner_process(runnable_model):
 
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        group_status = None
-        while group_status != "COMPLETE":
-            f = executor.submit(monitoring_group_status, runnable_model.monitoring_group_id)
+        hub_status = None
+        while hub_status != "STOPPED":
+            f = executor.submit(get_hub_status, runnable_model.hub_id)
             schedule.run_pending()
             time.sleep(0.25)
-            group_status = f.result()
+            hub_status = f.result()
 
 
     db_query("""UPDATE monitoring.model_queue
                 SET status='FINISHED'
                 WHERE id=%s""", (runnable_model.job_id,), fetch_results=False)
 
-    print("group finished")
+    print("hub finished")
     schedule.clear()
 
 
@@ -568,7 +596,7 @@ example_job_config = {'model_name': 'frac score',
                       'frequency': 1,
                       'window_size': 30,
                       'api': "42283351490000",
-                      'monitoring_group_id': 'bae36828-3f04-4a5f-a5f0-b4db8eb225e9',
+                      'hub_id': 'bae36828-3f04-4a5f-a5f0-b4db8eb225e9',
                       'id': "36c6221a-5e90-4e48-8d96-2c46b3c6a680"}
 
 TEST_QUEUE = deque([example_job_config for i in range(3)])
@@ -584,6 +612,7 @@ def scheduler_queue():
                 while current_jobs < max_jobs:
                     job_config = pull_next_job()
                     if job_config:
+                        print("picking up job")
                         print(job_config)
                         model_name = job_config['model_name']
                         runnable_model = ModelRunner(job_config, FracScore(30), )
@@ -607,6 +636,10 @@ def scheduler_queue():
                     f.cancel()
                 print(e)
                 break
+
+import pickle
+import fracs
+
 
 if __name__ == "__main__":
     scheduler_queue()
