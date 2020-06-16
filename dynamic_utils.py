@@ -365,6 +365,7 @@ def interval_to_flat_array_single(sensor_id, start, end, sample_rate=57000):
 
     return buffer
 
+"""
 #not used?
 class DataPuller():
     def __init__(self, buffer_capacity=60*57000, delay=0):
@@ -416,57 +417,4 @@ class DataPuller():
                     self.buffer.append(data)
                     self.latest = filetime
                     break
-
-
-
-def scheduler():
-    api = "42479442680000"
-    models_with_configs = [(sample_model_config, FracScore(30), api)]
-    #models_with_configs = [(sample_model_config, StageModel(1,2), api)]
-    init_time = parse_time_string_with_colon_offset("2020-02-08T06:45:00-05:00")
-    jobs = []
-    for config, model, api in models_with_configs:
-        runnable_model = ModelRunner(model, config, api, initialization_time=init_time)
-        frequency = config['frequency']
-        job = schedule.every(frequency).seconds.do(runnable_model.update_data_and_infer)
-        jobs.append(job)
-
-    #dont try to run all jobs at once
-    for job in jobs:
-        job.run()
-        time.sleep(0.25)
-
-    #kick off immediately otherwise it waits for 'frequency' seconds before starting jobs
-    schedule.run_all()
-
-    while True:
-        try:
-            schedule.run_pending()
-            time.sleep(0.5)
-
-        except KeyboardInterrupt as e:
-            print(e)
-            schedule.clear()
-            break
-
-#stage_model = StageModel(1,2)
-#mi = ModelRunner(stage_model, sample_model_config, dynamic_id="a61b91c7-de10-4f45-9cdc-fb744eece46e", delay=60)
-
-def foo():
-    sensor_id = "23df1558-d475-4f78-9c43-9702bf2daefd"
-    d = DataPuller(60*57000)
-    while True:
-        try:
-            t0 = time.time()
-            d.get_next_file(sensor_id)
-            print(d.buffer._idx, time.time() - t0)
-            time.sleep(0.2)
-
-
-        except KeyboardInterrupt as e:
-            print(e)
-            return d
-
-
-if __name__ == "__main__":
-    scheduler_parallel()
+"""

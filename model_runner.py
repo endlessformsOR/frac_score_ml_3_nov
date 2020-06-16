@@ -9,6 +9,7 @@ import io
 import boto3
 import multiprocessing as mp
 import concurrent.futures
+import logging
 
 import db
 import schedule
@@ -17,8 +18,12 @@ import threading
 import psycopg2 as pg
 import psycopg2.extras
 import uuid
+import s3_models
 
 from dynamic_utils import DynamicRingBuffer, parse_time_string_with_colon_offset, interval_to_buckets, timebucket_files, s3_path_to_datetime, get_npz
+
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+logging.getLogger("schedule").setLevel(logging.WARNING)
 
 
 #Makes postgres UUID[] type return as list of strings
@@ -51,8 +56,6 @@ def interval_to_flat_array_threaded(sensor_id, start, end, sample_rate=57000, mu
     import concurrent.futures
     assert end > start
     start = start.astimezone(pytz.utc).replace(microsecond=0)
-    #end = end.astimezone(pytz.utc).replace(microsecond=0)
-
 
     def within_interval(s3_path):
         t = s3_path_to_datetime(s3_path)
@@ -63,7 +66,6 @@ def interval_to_flat_array_threaded(sensor_id, start, end, sample_rate=57000, mu
 
     num_seconds = (end - start).seconds
     num_samples = sample_rate * num_seconds
-    #buffer = FlatRingBuffer(num_samples)
     buffer = DynamicRingBuffer(num_samples)
 
     t0 = time.time()
@@ -73,7 +75,7 @@ def interval_to_flat_array_threaded(sensor_id, start, end, sample_rate=57000, mu
             files = pool.starmap(timebucket_files, [(sensor_id, timebucket) for timebucket in timebuckets])
             files = [val for sublist in files for val in sublist]
             files_within_interval = [f for f in files if within_interval(f)]
-            print("Downloading ", len(files_within_interval), " files", len(files))
+            logging.debug("Downloading " + str(len(files_within_interval)) +  " files")
             data = pool.map(get_npz, files_within_interval)
 
     else:
@@ -83,10 +85,10 @@ def interval_to_flat_array_threaded(sensor_id, start, end, sample_rate=57000, mu
             files = executor.map(timebucket_files, sensor_ids, timebuckets)
             files = [val for sublist in files for val in sublist]
             files_within_interval = [f for f in files if within_interval(f)]
-            print("Downloading ", len(files_within_interval), " files", len(files))
+            logging.debug("Downloading " + str(len(files_within_interval)) +  " files")
             data = executor.map(get_npz, files_within_interval)
 
-    #print("time to download:", time.time() - t0)
+    logging.debug("time to download: " + str(time.time() - t0))
 
     for d in data:
         buffer.append(d)
@@ -142,7 +144,6 @@ class ModelData():
         self.start = self.end - timedelta(seconds=self.window_size)
 
 
-    #TODO: historical mode that just increments by frequency every time
     def increment_interval_historical(self, num_new_files=0):
         assert self.start and self.end
         delta = timedelta(seconds=self.frequency)
@@ -162,7 +163,6 @@ class ModelData():
             for i in range(seconds_to_drop):
                 if len(self.dynamic_buffer) > self.max_sample_rate:
                     self.dynamic_buffer.popleftn(self.max_sample_rate)
-
 
 
     def increment_interval_live(self, num_new_files=0):
@@ -190,13 +190,9 @@ class ModelData():
 
         #jump window forward after max retries
         elif self.retries >= self.max_retries:
-            print("max retries")
-
-            #retry_delay = (self.max_retries * self.frequency) + 1
-            #now = datetime.now().astimezone(pytz.utc).replace(microsecond=0)
+            logging.warning("max retries")
 
             #ensure dont jump into the future
-            #new_end = min(self.end + timedelta(seconds=retry_delay), now)
             new_end = datetime.now().astimezone(pytz.utc).replace(microsecond=0)
 
             delta = new_end - self.end
@@ -228,7 +224,6 @@ class ModelData():
         #cold start: not enough data populated yet
         elif self.current_window_size < self.window_size:
             size_difference = self.window_size - self.current_window_size
-            print(size_difference, self.window_size)
             start = self.end - timedelta(seconds=size_difference)
             end = self.end
 
@@ -248,7 +243,6 @@ class ModelData():
         assert self.dynamic_id and self.start and self.end
 
         start, end = self.interval_to_fetch()
-        print(end, start, (end-start).seconds)
         new_data, num_files, sample_rate, _, _ = interval_to_flat_array_threaded(self.dynamic_id,
                                                                                  start,
                                                                                  end,
@@ -312,65 +306,6 @@ class ModelData():
         return list(self.static_buffer)
 
 
-
-class AbstractModel(ABC):
-    @abstractmethod
-    def __init__(self):
-        pass
-
-    @abstractmethod
-    def infer(self, dynamic_data=None, static_data=None):
-        """Takes in data and returns a list of detected events
-            [{"event": "stage start",
-              "start_idx": 57000*2,
-              "end_idx": 57000*20,
-             "tags": ["tag1", "tag2"]}]"""
-        pass
-
-
-class StageModel(AbstractModel):
-    def __init__(self, a, b):
-        self.a = a
-        self.b = b
-
-    def infer(self, dynamic_data=None, static_data=None):
-        events = [{"event": "stage start",
-                   "start_idx": 40000*10,
-                   "end_idx": 40000*20,
-                   "tags": ["tag1", "tag2"]}]
-        return events
-
-
-class FracScore(AbstractModel):
-    def __init__(self, window_size=1, std_multipler=7.5):
-        self.window_size = window_size #second
-        self.std_multipler = std_multipler
-        print("Frac window", self.window_size)
-
-    def infer(self, dynamic_data, static_data):
-        from frac_score import frac_score
-        if len(dynamic_data) > 0:
-
-            num_fracs = frac_score(dynamic_data, window_in_seconds=self.window_size, STD_MULTIPLIER=self.std_multipler)
-
-            result = {"event": "frac count",
-                      "value": num_fracs}
-
-            #result = fracs.fracScore(dynamic_data, static_data, self.seconds)
-            #print(np.array(result[1]).sum())
-            #for r in result:
-                #print(np.array(r).sum())
-            """
-            result = [{"event": "stage start",
-                     "start_idx": 57000*2,
-                     "end_idx": 57000*20,
-                     "tags": ["tag1", "tag2"]}]
-            """
-            return result
-
-        return None
-
-
 def well_sensors(api_14):
     "Fetches well static and dynamic sensor ids"
     q = """
@@ -380,13 +315,18 @@ def well_sensors(api_14):
         JOIN monitoring.sensor_models ON monitoring.sensor_models.id = sensor_model_id
         WHERE api = %s"""
     res = db_query(q, (api_14,))
-    print("res", res)
     sensors = {}
     for row in res:
         id = row['id']
         pressure_type = row['pressure_type']
         sensors[pressure_type] = id
     return sensors
+
+def update_job_last_updated(job_id):
+    db_query("""UPDATE monitoring.model_queue
+                    SET last_update=%s
+                    WHERE id=%s""",
+             (datetime.now().astimezone(pytz.utc), job_id), fetch_results=False)
 
 
 class ModelRunner():
@@ -411,11 +351,7 @@ class ModelRunner():
         self.model = model
         #self.delay = delay
 
-        self.timeseries = config["timeseries"]
-
-        #sensors = well_sensors(self.api)
-        #self.static_id = sensors['static']
-        #self.dynamic_id = sensors['dynamic']
+        self.timeseries = config.get("timeseries", False)
 
         static_ids = config.get('static_sensor_ids')
         dynamic_ids = config.get('dynamic_sensor_ids')
@@ -428,11 +364,9 @@ class ModelRunner():
         if dynamic_ids:
             self.dynamic_id = dynamic_ids[0]
 
-
         if not initialization_time:
             initialization_time =  datetime.now().astimezone(pytz.utc).replace(microsecond=0)
 
-        #data_init_time = datetime.now().astimezone(pytz.utc).replace(microsecond=0) - timedelta(seconds=self.delay)
         self.model_data = ModelData(self.frequency,
                                     self.window_size,
                                     dynamic_id=self.dynamic_id,
@@ -442,6 +376,7 @@ class ModelRunner():
 
 
     def calculate_result_times(self, model_results):
+        """For events with big window calculate start/end time of window based"""
         sample_rate = self.model_data.max_sample_rate
         start_idx = model_results['start_idx']
         end_idx = model_results['end_idx']
@@ -456,7 +391,7 @@ class ModelRunner():
     def infer(self):
         dynamic_data = self.model_data.dynamic_data()
         static_data = self.model_data.static_data()
-        results = self.model.infer(dynamic_data, static_data)
+        result = self.model.infer(dynamic_data, static_data)
         """
         if results:
             for result in results:
@@ -465,45 +400,37 @@ class ModelRunner():
                 result['end_time'] = end
             return results
         """
-        return results
+        return result
+
 
     def update_data_and_infer(self):
         t0 = time.time()
         self.model_data.update_data()
         results = self.infer()
-        #print("update infer time", time.time() - t0)
+        update_job_last_updated(self.job_id)
         return results
 
 
     def insert_timeseries_event(self, event):
         q = """INSERT INTO monitoring.timeseries_events
                (time, event, well_id, value)
-               VAULES (%s, %s, %s, %s)"""
+               VALUES (%s, %s, %s, %s)"""
 
         args = (self.model_data.end.astimezone(pytz.utc),
-                event['result'],
+                event['event'],
                 self.well_id,
                 event['value'])
 
         db_query(q, args, fetch_results=False)
+
 
     def insert_event(self, event):
         q = """INSERT INTO monitoring.events
                  (id, well_id, event, start_time, end_time)
                  VALUES (%s, %s, %s, %s, %s)"""
 
-        """
-        sample_args = (str(uuid.uuid4()),
-                       self.well_id,
-                       "test event",
-                       datetime.now().astimezone(pytz.utc),
-                       datetime.now().astimezone(pytz.utc) - timedelta(seconds=60))
-
-        db_query(q, sample_args, fetch_results=False)
-        """
-
-
         if event:
+            results = self.calculate_result_times(event)
             event_id = str(uuid.uuid4())
             args = (event_id,
                     self.well_id,
@@ -513,23 +440,16 @@ class ModelRunner():
             db_query(q, args)
 
 
-
-        db_query("""UPDATE monitoring.model_queue
-                    SET last_update=%s
-                    WHERE id=%s""",
-                 (datetime.now().astimezone(pytz.utc), self.job_id), fetch_results=False)
-
-
-
     def detect_and_insert_events(self):
         self.model_data.update_data()
+        result = self.infer()
 
-        results = self.infer()
-
-        if self.timeseries:
-            self.insert_timeseries_event(results)
+        if self.timeseries and result:
+            self.insert_timeseries_event(result)
         else:
-            self.insert_event(results)
+            if result:
+                self.insert_event(result)
+
 
 def partition(lst, n):
     """Yield successive n-sized chunks from lst."""
@@ -543,9 +463,8 @@ class HistoricalModelRunner(ModelRunner):
 
     Parameters:
     ----------
-    model : Class that implements AbstractModel - pass data to this and get events back
+    model : Class that implements infer(dynamic_data, static_data) - pass data to this and get events back
     config : Dict defining period and window size to run model on
-    delay : seconds in past to initialize model on - needed because delay uploading data to s3
     """
     def __init__(self, config, model, initialization_time, window_multipler=5):
 
@@ -568,7 +487,7 @@ class HistoricalModelRunner(ModelRunner):
         if dynamic_ids:
             self.dynamic_id = dynamic_ids[0]
 
-        #data_init_time = datetime.now().astimezone(pytz.utc).replace(microsecond=0) - timedelta(seconds=self.delay)
+
         self.model_data = ModelData(self.frequency*window_multipler,
                                     self.window_size*window_multipler,
                                     dynamic_id=self.dynamic_id,
@@ -622,11 +541,17 @@ def run_threaded(job_func):
     job_thread.start()
 
 
-def model_runner_process(runnable_model):
+def model_runner_process(job_config):
     """To be ran in a separate process.
        Runs model peridoically until hub marked complete.
        Runs model in seperate thread from process main thread to prevent blocking the scheduler
        https://schedule.readthedocs.io/en/stable/faq.html#how-to-execute-jobs-in-parallel"""
+    model_type = job_config['model_type']
+    model_name = job_config['model_name']
+    model_version = job_config['model_version']
+    model_class, _ = s3_models.download_model(model_type, model_name, model_version)
+    model_instance = model_class(job_config['window_size'])
+    runnable_model = ModelRunner(job_config, model_instance, live_data=True)
     frequency = runnable_model.frequency
 
     #kick off a job before the scheduled job to allow model to block while downloading tons of files if necessary to start
@@ -650,7 +575,8 @@ def model_runner_process(runnable_model):
                 SET status='FINISHED'
                 WHERE id=%s""", (runnable_model.job_id,), fetch_results=False)
 
-    print("hub finished")
+    logging.info("Job finished")
+    logging.info(job_config)
     schedule.clear()
 
 
@@ -692,14 +618,6 @@ def pull_next_job(failed=False):
 
     return None
 
-example_job_config = {'model_name': 'frac score',
-                      'frequency': 1,
-                      'window_size': 30,
-                      'api': "42283351490000",
-                      'hub_id': 'bae36828-3f04-4a5f-a5f0-b4db8eb225e9',
-                      'id': "36c6221a-5e90-4e48-8d96-2c46b3c6a680"}
-
-TEST_QUEUE = deque([example_job_config for i in range(3)])
 
 def scheduler_queue():
     max_jobs = os.environ.get('max_jobs', 2)
@@ -712,12 +630,10 @@ def scheduler_queue():
                 while current_jobs < max_jobs:
                     job_config = pull_next_job()
                     if job_config:
-                        print("picking up job")
-                        print(job_config)
-                        model_name = job_config['model_name']
-                        runnable_model = ModelRunner(job_config, FracScore(30), )
+                        logging.info("Starting new job")
+                        logging.info(job_config)
 
-                        f = executor.submit(model_runner_process, runnable_model)
+                        f = executor.submit(model_runner_process2, job_config)
                         futures.append(f)
                         current_jobs += 1
                     time.sleep(0.5)
@@ -736,25 +652,6 @@ def scheduler_queue():
                     f.cancel()
                 print(e)
                 break
-
-
-"""
-
-staging_test_config = {"well_id": "314b5931-1bdb-4df7-b606-687b5b7c68f9",
-                       "frequency": 60,
-                       "window_size":60,
-                       "hub_id": "hubid",
-                       "id": "jobid",
-                       "timeseries": True,
-                       "dynamic_sensor_ids": ["deb01dc2-2f23-48d6-8d01-9c0fdeb50d2e"],
-                       }
-staging_test_model = FracScore()
-
-runner = ModelRunner(staging_test_config,
-                     staging_test_model,
-                     initialization_time=datetime(2019,12,20).astimezone(pytz.utc))
-"""
-
 
 
 if __name__ == "__main__":
