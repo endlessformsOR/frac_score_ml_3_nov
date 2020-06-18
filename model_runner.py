@@ -22,8 +22,10 @@ import s3_models
 
 from dynamic_utils import DynamicRingBuffer, parse_time_string_with_colon_offset, interval_to_buckets, timebucket_files, s3_path_to_datetime, get_npz
 
-logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+logging.basicConfig(format='%(levelname)s %(asctime)s: %(message)s', level=logging.INFO)
 logging.getLogger("schedule").setLevel(logging.WARNING)
+logging.getLogger("boto3").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
 
 
 #Makes postgres UUID[] type return as list of strings
@@ -49,6 +51,7 @@ def db_query(q, args=None, fetch_results=True):
             if fetch_results:
                 res = cur.fetchall()
                 return res
+
 
 
 def interval_to_flat_array_threaded(sensor_id, start, end, sample_rate=57000, multiprocessing=False):
@@ -135,7 +138,7 @@ class ModelData():
         self.live_data = live_data
 
         self.retries = 0
-        self.max_retries = 5
+        self.max_retries = 3
 
 
         if not self.end:
@@ -166,17 +169,18 @@ class ModelData():
 
 
     def increment_interval_live(self, num_new_files=0):
-        "Updates window start and end"
+        "Updates window start and end."
         assert self.start and self.end
+
 
         if num_new_files:
             #prevent jumping into the future
-            seconds_behind_present = (datetime.now().astimezone(pytz.utc).replace(microsecond=0) - self.end).seconds
+            now = datetime.now().astimezone(pytz.utc)
+            seconds_behind_present = (now - self.end).seconds
             if num_new_files > seconds_behind_present:
                 delta = timedelta(seconds_behind_present)
             else:
                 delta = timedelta(seconds=num_new_files)
-
 
             #buffer full
             if self.current_window_size >= self.window_size:
@@ -190,7 +194,7 @@ class ModelData():
 
         #jump window forward after max retries
         elif self.retries >= self.max_retries:
-            logging.warning("max retries")
+            logging.warning(f"Unable to find interval data within {self.max_retries} retries: jumping to present")
 
             #ensure dont jump into the future
             new_end = datetime.now().astimezone(pytz.utc).replace(microsecond=0)
@@ -208,7 +212,7 @@ class ModelData():
 
             if self.dynamic_id:
                 for i in range(delta.seconds):
-                    if len(self.dynamic_buffer) > self.max_sample_rate:
+                    if len(self.dynamic_buffer) >= self.max_sample_rate:
                         self.dynamic_buffer.popleftn(self.max_sample_rate)
 
         else:
@@ -274,7 +278,7 @@ class ModelData():
 
     #TODO: num_new_files is bad assumption. Files are sometimes skipped
     def update_data(self):
-        num_new_files = None
+        num_new_files = 0
 
         if self.dynamic_id:
             num_new_files = self.update_dynamic_data()
@@ -297,6 +301,8 @@ class ModelData():
                 self.increment_interval_historical(num_new_files)
 
         self.initialized = True
+
+        return num_new_files > 0
 
 
     def dynamic_data(self):
@@ -322,6 +328,7 @@ def well_sensors(api_14):
         sensors[pressure_type] = id
     return sensors
 
+
 def update_job_last_updated(job_id):
     db_query("""UPDATE monitoring.model_queue
                     SET last_update=%s
@@ -337,19 +344,16 @@ class ModelRunner():
     ----------
     model : Class that implements AbstractModel - pass data to this and get events back
     config : Dict defining period and window size to run model on
-    delay : seconds in past to initialize model on - needed because delay uploading data to s3
     """
     def __init__(self, config, model, initialization_time=None, live_data=False):
 
         self.frequency = config["frequency"]
-        #self.api = config["api"]
-        self.well_id = config["well_id"]
         self.window_size = config["window_size"]
+        self.well_id = config["well_id"]
         self.job_id = config["id"]
-        #self.monitoring_group_id = config['monitoring_group_id']
         self.hub_id = config['hub_id']
         self.model = model
-        #self.delay = delay
+        self.version = config['model_version']
 
         self.timeseries = config.get("timeseries", False)
 
@@ -404,11 +408,10 @@ class ModelRunner():
 
 
     def update_data_and_infer(self):
-        t0 = time.time()
-        self.model_data.update_data()
-        results = self.infer()
-        update_job_last_updated(self.job_id)
-        return results
+        is_new_data = self.model_data.update_data()
+        if is_new_data:
+            results = self.infer()
+            return results
 
 
     def insert_timeseries_event(self, event):
@@ -441,14 +444,16 @@ class ModelRunner():
 
 
     def detect_and_insert_events(self):
-        self.model_data.update_data()
-        result = self.infer()
+        is_new_data = self.model_data.update_data()
+        if is_new_data:
+            result = self.infer()
+            if self.timeseries and result:
+                self.insert_timeseries_event(result)
+            else:
+                if result:
+                    self.insert_event(result)
 
-        if self.timeseries and result:
-            self.insert_timeseries_event(result)
-        else:
-            if result:
-                self.insert_event(result)
+        update_job_last_updated(self.job_id)
 
 
 def partition(lst, n):
@@ -612,7 +617,6 @@ def pull_next_job(failed=False):
                    """
 
         failed = db_query(failed_q)
-
         if len(failed) > 0:
             return failed[0]
 
@@ -624,16 +628,16 @@ def scheduler_queue():
     current_jobs = 0
     futures = []
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
         while True:
             try:
                 while current_jobs < max_jobs:
-                    job_config = pull_next_job()
+                    job_config = pull_next_job(failed=True)
                     if job_config:
                         logging.info("Starting new job")
                         logging.info(job_config)
 
-                        f = executor.submit(model_runner_process2, job_config)
+                        f = executor.submit(model_runner_process, job_config)
                         futures.append(f)
                         current_jobs += 1
                     time.sleep(0.5)

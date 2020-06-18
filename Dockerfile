@@ -12,7 +12,7 @@ RUN wget https://releases.hashicorp.com/vault/1.4.2/vault_1.4.2_linux_amd64.zip 
 
 
 RUN mkdir /model_runner
-COPY pyproject.toml db.py dynamic_utils.py model_runner.py /model_runner/
+COPY pyproject.toml db.py dynamic_utils.py model_runner.py s3_models.py /model_runner/
 
 WORKDIR /model_runner
 RUN /root/.poetry/bin/poetry install
