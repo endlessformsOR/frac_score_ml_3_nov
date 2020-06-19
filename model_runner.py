@@ -172,15 +172,9 @@ class ModelData():
         "Updates window start and end."
         assert self.start and self.end
 
-
         if num_new_files:
-            #prevent jumping into the future
-            now = datetime.now().astimezone(pytz.utc)
-            seconds_behind_present = (now - self.end).seconds
-            if num_new_files > seconds_behind_present:
-                delta = timedelta(seconds_behind_present)
-            else:
-                delta = timedelta(seconds=num_new_files)
+
+            delta = timedelta(seconds=num_new_files)
 
             #buffer full
             if self.current_window_size >= self.window_size:
@@ -194,12 +188,11 @@ class ModelData():
 
         #jump window forward after max retries
         elif self.retries >= self.max_retries:
-            logging.warning(f"Unable to find interval data within {self.max_retries} retries: jumping to present")
+            logging.warning(f"Unable to find interval data within {self.max_retries} retries: jumping to present. Dynamic: {self.dynamic_id}, Static: {self.static_id}")
 
             #ensure dont jump into the future
-            new_end = datetime.now().astimezone(pytz.utc).replace(microsecond=0)
-
-            delta = new_end - self.end
+            now = datetime.now().astimezone(pytz.utc).replace(microsecond=0)
+            delta = (now - self.end)
             self.end += delta
             self.start += delta
             self.retries = 0
@@ -416,13 +409,14 @@ class ModelRunner():
 
     def insert_timeseries_event(self, event):
         q = """INSERT INTO monitoring.timeseries_events
-               (time, event, well_id, value)
-               VALUES (%s, %s, %s, %s)"""
+               (time, event, well_id, value, model_version)
+               VALUES (%s, %s, %s, %s, %s)"""
 
         args = (self.model_data.end.astimezone(pytz.utc),
                 event['event'],
                 self.well_id,
-                event['value'])
+                event['value'],
+                self.version)
 
         db_query(q, args, fetch_results=False)
 
@@ -624,11 +618,11 @@ def pull_next_job(failed=False):
 
 
 def scheduler_queue():
-    max_jobs = os.environ.get('max_jobs', 2)
+    max_jobs = os.environ.get('max_jobs', 4)
     current_jobs = 0
     futures = []
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=max_jobs) as executor:
         while True:
             try:
                 while current_jobs < max_jobs:
