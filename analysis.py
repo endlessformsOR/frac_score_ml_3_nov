@@ -8,8 +8,10 @@ import scipy.signal as signal
 import scipy.fft as fft
 
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import matplotlib.colors as colors
 import matplotlib.cbook as cbook
+import matplotlib.transforms
 
 import librosa
 import db
@@ -252,6 +254,7 @@ def plot_spectrogram(times, freqs, spectrums, gamma=0.3):
     fig.colorbar(pcm)
     plt.show()
 
+
 def plot_spectrogram_b(signal, grid=True):
     fig, ax = plt.subplots(figsize=(20, 4))
     cax = ax.matshow(
@@ -265,6 +268,7 @@ def plot_spectrogram_b(signal, grid=True):
     plt.grid(grid)
     fig.colorbar(cax)
 
+
 def spectrogram(xn, sampling_rate=40000):
     window_size = 1024
     overlap = window_size / 4
@@ -275,12 +279,208 @@ def spectrogram(xn, sampling_rate=40000):
                                                  return_onesided=True, scaling=scaling, mode=mode)
     return freqs, times, spectrums
 
+
 def find_peaks(xn, min_prominence=30, min_spacing=2):
     peaks, props = signal.find_peaks(y, prominence=min_prominence, distance=min_spacing)
     return peaks
+
 
 def plot_peaks(peaks, y):
     plt.plot(peaks, y[peaks], '.')
 
 
+def plot_range_events(x, stages, title=None, edge_labels=False):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(x)
+    for i, stage in stages.iterrows():
+        ax.axvline(stage['start'], color='green', linestyle=':')
+        ax.axvline(stage['end'], color='red', linestyle=':')
+
+        if edge_labels:
+            trans = ax.get_xaxis_transform()
+            plt.text(stage['start'], .2, stage['start'].strftime('%H:%M'),
+                    transform=trans, rotation=-30,
+                    bbox=dict(boxstyle="round", ec=(1., 1., 1.), fc=(1,1,1)))
+            plt.text(stage['end'], .2, stage['end'].strftime('%H:%M'),
+                    transform=trans, rotation=-30,
+                    bbox=dict(boxstyle="round", ec=(1., 1., 1.), fc=(1,1,1)))
+
+    # format, rotate, and align the tick labels so they look better
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
+    fig.autofmt_xdate()
+    plt.grid()
+    if title:
+        plt.title(title)
+    plt.show()
+
+
+def pumpdown_length_histogram(pumpdowns):
+    '''Plot a histogram of pumpdown lengths.'''
+    pumpdown_lens = []
+    for index, event in pumpdowns.iterrows():
+        pumpdown_lens.append(event['end'] - event['start'])
+    plt.figure(figsize=(8,4))
+    plt.hist(pumpdown_lens)
+
+
+def dynamic2dashboard(signal_array, time_in_seconds, time_array,sampling_rate):
+
+    # determine sampling rate
+
+    signal_array_list = signal_array.tolist()
+
+    #sampling_rate = sampling_rate_int-1
+
+    # for each second, find max
+
+    x_list = []
+    t_list = []
+
+    for i in range(time_in_seconds):
+
+        start = i*sampling_rate
+        end = (i+1)*sampling_rate
+
+        maxVal = np.amax(signal_array[start:end],axis=0)
+
+        if i == time_in_seconds-1:
+            maxVal = np.amax(signal_array[-sampling_rate:-1],axis=0)
+
+        x_list.append(maxVal)
+        t_list.append(i+1)
+
+    x_out = np.asarray(x_list, dtype=np.float32)
+    t_out = np.asarray(t_list, dtype=np.float32)
+
+    return x_out, t_out
+
+
+#Welch matrix method
+
+def Welch_matrix_methods(signal_array, t_f,f_num,sampling_rate, seg_length):
+
+    # find size of array
+
+    x_vals, y_vals = signal.welch(signal_array,sampling_rate,nperseg=seg_length)
+
+    f_vals = len(x_vals)
+
+    #f_vals = int(seg_length/2 + 1)
+
+    spectro_PSD = np.zeros((f_vals,t_f))
+    spectro_LS = np.zeros((f_vals,t_f))
+
+    for second in range(t_f):
+
+        start = second*sampling_rate
+        end = (second+1)*sampling_rate
+
+        # Welch PSD
+
+        x_psd, y_psd = signal.welch(signal_array[start:end],sampling_rate,nperseg=seg_length)
+
+        y_psd_max = y_psd.max()
+
+        # Welch LS
+
+        x_ls, y_ls = signal.welch(signal_array[start:end],sampling_rate,'flattop',seg_length,scaling='spectrum')
+
+
+        if second == t_f - 1:
+
+            x_psd, y_psd = signal.welch(signal_array[start:end],sampling_rate,nperseg=seg_length)
+            x_ls, y_ls = signal.welch(signal_array[start:end],sampling_rate,'flattop',seg_length,scaling='spectrum')
+
+        spectro_PSD[:,second] = y_psd/y_psd_max
+        spectro_LS[:,second] = y_ls
+
+    return spectro_PSD, spectro_LS
+
+#define FFT maker
+
+def quickFFTobjs(xn, sampling_rate):
+
+    # normalized with / max val
+    N = len(xn)
+    T = 1 / sampling_rate
+    yf = sfp.fft(xn)
+    x_fft = np.linspace(int(0), int(1/(2*T)), int(N/2))
+    y_fft = (2.0/N)*np.abs(yf[:N//2]) / max ((2.0/N)*np.abs(yf[:N//2]))
+    return x_fft, y_fft
+
+# LogFFT Spectrograph
+
+def logFFT(xn, sampling_rate,f_num):
+
+    # normalized with / max val
+    N = len(xn)
+    T = 1 / sampling_rate
+    yf = sfp.fft(xn)
+    x_fft = np.linspace(int(0), int(1/(2*T)), int(N/2))
+
+    # normalized version
+    #y_fft = (2.0/N)*np.abs(yf[:N//2]) / max ((2.0/N)*np.abs(yf[:N//2]))
+
+    # non nomralized version
+    y_fft = (2.0/N)*np.abs(yf[:N//2])
+
+    # make log space of x output
+
+    x_fft_loglog = np.logspace(1,4,f_num)
+    y_fft_loglog = []
+
+    # find corresponding x and y val from linear FFT
+
+    for i in x_fft_loglog:
+
+        idx = (np.abs(x_fft-i)).argmin()
+        y_fft_loglog.append(y_fft[idx])
+
+    np.asarray(y_fft_loglog,dtype=np.float32)
+    np.asarray(x_fft_loglog,dtype=np.float32)
+
+    # return normalized version
+    y_fft_log_norm = (np.abs(y_fft_loglog)/max(np.abs(y_fft_loglog)))
+
+    #test, return un nomalized
+    #y_fft_log_norm = np.abs(y_fft_loglog)
+
+    return x_fft_loglog, y_fft_log_norm
+
+# LogFFT 2D matrix method
+
+def logFFT2Dmatrix(signal_array, t_f,f_num,sampling_rate):
+
+    spectroImage = np.zeros((f_num,t_f))
+
+    for second in range(t_f):
+
+        start = second*sampling_rate
+        end = (second+1)*sampling_rate
+
+        x_fft_log, y_fft_log = logFFT(signal_array[start:end],sampling_rate,f_num)
+
+        if second == t_f - 1:
+
+            x_fft_log, y_fft_log = logFFT(signal_array[start:end],sampling_rate,f_num)
+
+        spectroImage[:,second] = y_fft_log
+
+    return spectroImage
+
+def fetch_sensor_db_data(sensor_id, start,end):
+    assert end > start
+    db.init()
+
+    static_data = db.query_dataframe("""
+    SELECT time,min,max,average,variance
+    FROM monitoring.sensor_data
+    WHERE sensor_id = %s
+    AND time >= %s
+    AND time <= %s
+    ORDER BY time ASC
+    """, (sensor_id, start,end))
+
+    return static_data
 

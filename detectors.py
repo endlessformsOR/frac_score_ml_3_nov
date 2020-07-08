@@ -1,3 +1,4 @@
+import datetime
 import itertools
 import numpy as np
 import pandas as pd
@@ -5,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cbook as cbook
 import scipy.signal as signal
+import peakdetect
 
 import db
 import analysis
@@ -30,35 +32,8 @@ import analysis
 #  * detect early signs of communication using dynamic sensors before we see a static pressure increase in the offset well
 #      - produce a communication event/alert so that the operator can decide whether they want to continue or not
 
-def setup():
-    db.init()
-
-    api = name_to_api("BRISCOE CATARINA", "33HU")[0][0]
-    sensor_id = sensor_info(api)[0][0]
-    start_time = datetime.datetime(year=2020, month=1, day=7, hour=14, minute=0, second=0).isoformat()
-    end_time = datetime.datetime(year=2020, month=1, day=9, hour=24, minute=0, second=0).isoformat()
-    static_data = static_sensor_data(sensor_id, start_time, end_time)
-
-def static_sensor_data(name, number):
-    api = db.well_name_to_api("BRISCOE CATARINA", "33HU")
-    sensor_id = db.sensor_info(api)['id']
-    start_time = datetime.datetime(year=2020, month=1, day=3, hour=0, minute=0, second=0).isoformat()
-    end_time = datetime.datetime(year=2020, month=1, day=7, hour=0, minute=0, second=0).isoformat()
-    static_data = db.static_sensor_data(sensor_id, start_time, end_time, period=60)
-
-
-def plot_range_events(x, stages):
-    plt.figure()
-    plt.plot(x)
-    for stage in stages:
-        plt.axvline(stage['start'], color='green', linestyle=':')
-        plt.axvline(stage['end'], color='red', linestyle=':')
-    plt.show()
-
-
-def merge_close_events(events, min_distance):
-    # Now merge pumpdowns that are too close, because they probably just paused
-    # for a moment.
+def _merge_close_events(events, min_distance):
+    '''Merge events that fall within min_distance space.'''
     merged = []
     already_added = False
     for i in range(len(events)-1):
@@ -74,36 +49,36 @@ def merge_close_events(events, min_distance):
             already_added = True
         else:
             merged.append(a)
-    return merged
+    return pd.DataFrame(merged)
 
 
-STAGE_MIN_DISTANCE = 60 # 1 hour at 60 second periods
+STAGE_MIN_DISTANCE = datetime.timedelta(hours=1)
 
-def detect_stages(x):
+def detect_stages(static_data):
     smoothing_window_size = 71
     polynomial_order = 3
-    x = signal.savgol_filter(x, smoothing_window_size, polynomial_order)
-    peaks, peak_info = signal.find_peaks(x,
-            prominence=1000,
-            wlen=400)
+    x = signal.savgol_filter(static_data, smoothing_window_size, polynomial_order)
+    peaks, peak_info = signal.find_peaks(x, prominence=2000, wlen=300)
 
     events = []
     for start, end in zip(peak_info['left_bases'], peak_info['right_bases']):
         events.append({
-            'start': start,
-            'end': end
+            'start': static_data.index[start],
+            'end': static_data.index[end],
+            'start_idx': start,
+            'end_idx': end
             })
 
-    merged = merge_close_events(events, STAGE_MIN_DISTANCE)
-    return merged
+    merged = _merge_close_events(events, STAGE_MIN_DISTANCE)
+    return pd.DataFrame(merged)
 
 
-PUMPDOWN_MIN_DISTANCE = 60 # 1 hour at 60 second periods
+PUMPDOWN_MIN_DISTANCE = datetime.timedelta(hours=1)
 
-def detect_pumpdowns(x):
+def detect_pumpdowns(static_data):
     '''Detect pumpdowns in static pressure data.
     NOTE: expects data sampled at 60 second periods.'''
-    peaks, peak_info = signal.find_peaks(x,
+    peaks, peak_info = signal.find_peaks(static_data,
             prominence=(30, 1000),
             width=(5, 90),
             height=(2000, 6500),
@@ -112,19 +87,51 @@ def detect_pumpdowns(x):
     events = []
     for start, end in zip(peak_info['left_bases'], peak_info['right_bases']):
         events.append({
-            'start': start,
-            'end': end
+            'start': static_data.index[start],
+            'end': static_data.index[end],
+            'start_idx': start,
+            'end_idx': end
             })
 
-    merged = merge_close_events(events, PUMPDOWN_MIN_DISTANCE)
-    return merged
+    merged = _merge_close_events(events, PUMPDOWN_MIN_DISTANCE)
+    return pd.DataFrame(merged)
 
-def pumpdown_length_histogram(pumpdowns):
-    '''Plot a histogram of pumpdown lengths.'''
-    pumpdown_lens = []
-    for event in pumpdowns:
-        pumpdown_lens.append(event['end'] - event['start'])
-    plt.figure(figsize=(8,4))
-    plt.hist(pumpdown_lens)
+
+def detect_maintenance_breaks(static_data):
+    peaks, peak_info = signal.find_peaks((-1*static_data),
+                                         prominence=(1000,10000),
+                                         width=(3,100),
+                                         height=0,
+                                         wlen=100
+                                        )
+    events = []
+    for start, end in zip(peak_info['left_bases'], peak_info['right_bases']):
+        events.append({
+            'start': static_data.index[start],
+            'end': static_data.index[end],
+            'start_idx': start,
+            'end_idx': end
+            })
+    return pd.DataFrame(events)
+
+
+def fracture_rate(dynamic_sensor, start_time, end_time, env='live'):
+    '''Compute the estimated fractures per second.'''
+    n_secs = (end_time - start_time).total_seconds()
+    chunk_size = 10 # in seconds
+
+    # Iterate over chunks
+    for i in range(0, n_secs-1, chunk_size):
+        chunk_start = start_time + datetime.timedelta(seconds=i)
+        chunk_end = start_time + datetime.timedelta(seconds=(i+chunk_size))
+        chunk_data = db.dynamic_sensor_data(
+                dynamic_sensor['id'],
+                start_time=chunk_start,
+                end_time=chunk_end,
+                environment=env)
+        sampling_rate = int(chunk_data.shape[0] / float(chunk_size))
+        y = analysis.high_pass_filter(chunk_data, 150)
+        pos_peaks, neg_peaks = peakdetect.peakdetect(y, lookahead=80, delta=18)
+        peaks = pos_peaks + neg_peaks
 
 

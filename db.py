@@ -190,28 +190,28 @@ def dynamic_sensor_data(sensor_id, start_time, end_time,
     return load_data_file(tmp_path)
 
 
-def download_single_sensor(sensor_id, start, end, path, env):
-    cmd = ['lein', 'audio', sensor_id, start, end, path, env, 'single-npz']
-    print("cmd: ", ' '.join(cmd))
-    process = subprocess.Popen(cmd,
-                               text=True,
-                               cwd=LEGEND_LIVE_DIR,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    print("stdout:", stdout)
-    print("stderr:", stderr)
-
-
-def download_monitoring_group(group_id, start, end, path, env):
-    cmd = ['lein', 'audio', group_id, start, end, path, env, 'monitoring-group']
-    print("cmd: ", ' '.join(cmd))
-    process = subprocess.Popen(cmd,
-                               text=True,
-                               cwd=LEGEND_LIVE_DIR,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    print("stdout:", stdout)
-    print("stderr:", stderr)
-
+#def download_single_sensor(sensor_id, start, end, path, env):
+#    cmd = ['lein', 'audio', sensor_id, start, end, path, env, 'single-npz']
+#    #print("cmd: ", ' '.join(cmd))
+#    process = subprocess.Popen(cmd,
+#                               text=True,
+#                               cwd=LEGEND_LIVE_DIR,
+#                               stdout=subprocess.PIPE,
+#                               stderr=subprocess.PIPE)
+#    stdout, stderr = process.communicate()
+#    #print("stdout:", stdout)
+#    #print("stderr:", stderr)
+#
+#
+#def download_monitoring_group(group_id, start, end, path, env):
+#    cmd = ['lein', 'audio', group_id, start, end, path, env, 'monitoring-group']
+#    #print("cmd: ", ' '.join(cmd))
+#    process = subprocess.Popen(cmd,
+#                               text=True,
+#                               cwd=LEGEND_LIVE_DIR,
+#                               stdout=subprocess.PIPE,
+#                               stderr=subprocess.PIPE)
+#    stdout, stderr = process.communicate()
+#    #print("stdout:", stdout)
+#    #print("stderr:", stderr)
+#

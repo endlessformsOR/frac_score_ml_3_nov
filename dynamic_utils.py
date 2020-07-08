@@ -79,6 +79,8 @@ class FlatRingBuffer():
     def size(self):
         return self._idx + 1
 
+def datetime_utc_string(dt):
+    return dt.astimezone(pytz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")    
 
 def datetime_to_s3_time_bucket(dt):
     "Generates the 10-second timebucket we use on s3"
@@ -150,11 +152,13 @@ def interval_to_flat_array(sensor_id, start, end, sample_rate=57000):
     buffer = FlatRingBuffer(num_samples)
 
     t0 = time.time()
-    print("Downloading files...")
+    
     with mp.Pool(64) as pool:
+        
         files = pool.starmap(timebucket_files, [(sensor_id, timebucket) for timebucket in timebuckets])
         files = [val for sublist in files for val in sublist]
         files_within_interval = [f for f in files if within_interval(f)]
+        print("Downloading ", len(files_within_interval), "files...")
         #files_within_interval = list(filter(lambda f: within_interval(f), files))
         data  = pool.map(get_npz, files)
     print("Files downloaded in ", time.time() - t0)
