@@ -624,7 +624,7 @@ def scheduler_queue():
         while True:
             try:
                 while current_jobs < max_jobs:
-                    job_config = pull_next_job(failed=True)
+                    job_config = pull_next_job(failed=False)
                     if job_config:
                         logging.info("Starting new job")
                         logging.info(job_config)
