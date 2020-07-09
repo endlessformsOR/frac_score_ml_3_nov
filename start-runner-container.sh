@@ -18,25 +18,18 @@ AWS_ACCESS_KEY_ID=$access_key
 AWS_SECRET_ACCESS_KEY=$secret_key
 AWS_SESSION_TOKEN=""
 
-echo $db_name
-echo $db_host
-echo $db_user
-echo $db_password
-echo $db_port
-
-
 
 docker run -d --restart=always                                    \
        -v /data:/srv/data                                         \
        -e VAULT_ADDR="https://vault.originrose.com:8200"          \
-       -e LEGEND_ENV=$machine                                     \
+       -e LEGEND_ENV=$env                                         \
        -e db_host=$db_host                                        \
        -e db_name=$db_name                                        \
        -e db_user=$db_user                                        \
-       -e db_password=$db_password                                        \
+       -e db_password=$db_password                                \
        -e db_port=$db_port                                        \
-       -e AWS_ACCESS_KEY_ID=$access_key \
-       -e AWS_SECRET_ACCESS_KEY=$secret_key \
+       -e AWS_ACCESS_KEY_ID=$access_key                           \
+       -e AWS_SECRET_ACCESS_KEY=$secret_key                       \
        --name model-runner-$env                                   \
-       docker.originrose.com/legend-model-runner:latest          \
+       docker.originrose.com/legend-model-runner:latest           \
        /root/.poetry/bin/poetry run python /model_runner/model_runner.py

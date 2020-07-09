@@ -52,8 +52,6 @@ def db_query(q, args=None, fetch_results=True):
                 res = cur.fetchall()
                 return res
 
-
-
 def interval_to_flat_array_threaded(sensor_id, start, end, sample_rate=57000, multiprocessing=False):
     "Returns all dynamic data for a sensor_id, start, and end time in a ring buffer"
     import concurrent.futures
@@ -138,7 +136,7 @@ class ModelData():
         self.live_data = live_data
 
         self.retries = 0
-        self.max_retries = 3
+        self.max_retries = 5
 
 
         if not self.end:
