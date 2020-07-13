@@ -23,10 +23,15 @@ from numpy_ringbuffer import RingBuffer
 
 
 
-ENV = os.environ.get('LEGEND_ENV', "staging")
+ENV = os.environ.get('LEGEND_ENV', "dev")
 ACCESS_KEY = os.environ['AWS_ACCESS_KEY_ID']
 SECRET_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
-S3_BUCKET = f"sensor-data-{ENV}"
+
+if ENV == "dev":
+    S3_BUCKET = "sensor-data-development"
+else:
+    S3_BUCKET = f"sensor-data-{ENV}"
+
 
 S3_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 NPZ_TIME_FORMAT = S3_TIME_FORMAT + ".npz"
