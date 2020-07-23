@@ -544,46 +544,52 @@ def model_runner_process(job_config):
        Runs model peridoically until hub marked complete.
        Runs model in seperate thread from process main thread to prevent blocking the scheduler
        https://schedule.readthedocs.io/en/stable/faq.html#how-to-execute-jobs-in-parallel"""
-    model_type = job_config['model_type']
-    model_name = job_config['model_name']
-    model_version = job_config['model_version']
-    #TODO: redo pickled py model class to take dictionary for config like tf model
-    if model_type == 'py':
-        model_class, _ = s3_models.download_py_model(model_name, model_version)
-        model_instance = model_class(job_config['window_size'])
+    try:
+        model_type = job_config['model_type']
+        model_name = job_config['model_name']
+        model_version = job_config['model_version']
 
-    if model_type =='tf':
-        keras_model, metadata = s3_models.download_tf_model(model_name, model_version)
-        #merge metadata and job specific config
-        model_config = {**metadata, **job_config}
-        model_instance = s3_models.TF_Model(keras_model, model_config)
+        #TODO: redo pickled py model class to take dictionary for config like tf model
+        if model_type == 'py':
+            model_class, _ = s3_models.download_py_model(model_name, model_version)
+            model_instance = model_class(job_config['window_size'])
 
-    runnable_model = ModelRunner(job_config, model_instance, live_data=True)
-    frequency = runnable_model.frequency
+        if model_type =='tf':
+            keras_model, metadata = s3_models.download_tf_model(model_name, model_version)
+            #merge metadata and job specific config
+            model_config = {**metadata, **job_config}
+            model_instance = s3_models.TF_Model(keras_model, model_config)
 
-    #kick off a job before the scheduled job to allow model to block while downloading tons of files if necessary to start
-    runnable_model.detect_and_insert_events()
+        runnable_model = ModelRunner(job_config, model_instance, live_data=True)
+        frequency = runnable_model.frequency
 
-    job = schedule.every(frequency).seconds.do(run_threaded, runnable_model.detect_and_insert_events)
-    #kick off job immediately instead of waiting 'frequency' seconds
-    job.run()
+        #kick off a job before the scheduled job to allow model to block while downloading tons of files if necessary to start
+        runnable_model.detect_and_insert_events()
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        hub_status = None
-        while hub_status != "STOPPED":
-            f = executor.submit(get_hub_status, runnable_model.hub_id)
-            schedule.run_pending()
-            time.sleep(0.25)
-            hub_status = f.result()
+        job = schedule.every(frequency).seconds.do(run_threaded, runnable_model.detect_and_insert_events)
+        #kick off job immediately instead of waiting 'frequency' seconds
+        job.run()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            hub_status = None
+            while hub_status != "STOPPED":
+                f = executor.submit(get_hub_status, runnable_model.hub_id)
+                schedule.run_pending()
+                time.sleep(0.25)
+                hub_status = f.result()
 
 
-    db_query("""UPDATE monitoring.model_queue
-                SET status='FINISHED'
-                WHERE id=%s""", (runnable_model.job_id,), fetch_results=False)
+        db_query("""UPDATE monitoring.model_queue
+                    SET status='FINISHED'
+                    WHERE id=%s""", (runnable_model.job_id,), fetch_results=False)
 
-    logging.info("Job finished")
-    logging.info(job_config)
-    schedule.clear()
+        logging.info("Job finished")
+        logging.info(job_config)
+        schedule.clear()
+
+    except Exception as e:
+        logging.error("Error in model_runner_process: " +  str(e))
+
 
 
 def pull_next_job(failed=False):

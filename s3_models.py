@@ -83,7 +83,7 @@ def download_py_model(model_name, version=None):
     prefix = f"py/{model_name}/{version}/"
     model_key = prefix + f"{model_name}-{version}"
 
-    metadata = download_metadata('tf', model_name, version)
+    metadata = download_metadata('py', model_name, version)
 
     #download model
     with io.BytesIO() as f:
