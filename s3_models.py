@@ -5,6 +5,8 @@ import io
 import cloudpickle
 import pickle
 import tensorflow as tf
+import tempfile
+import numpy as np
 
 S3_BUCKET = "legend-insight-models"
 ACCESS_KEY = os.environ['AWS_ACCESS_KEY_ID']
@@ -19,18 +21,17 @@ s3_client = boto3.client('s3',
 s3_bucket = s3_resource.Bucket(S3_BUCKET)
 
 class TF_Model():
-    def __init__(self, h5, metadata):
-        self.model = tf.keras.models.load_model(h5)
-        self.input_size = metadata['input_size']
+    def __init__(self, keras_model ,metadata):
+        self.model = keras_model
+        self.static_input_size = metadata.get('static_input_size') or metadata.get('window_size')
+        self.dynamic_input_size = metadata.get('dynamic_input_size')
         self.events = metadata['events']
-        self.uses_static_data = metadata.get('static_data')
-        self.uses_dynamic_data = metadata.get('dymamic_data')
+        self.sensors = metadata['sensors']
         self.detection_threshold = metadata['detection_threshold']
 
 
     def detect_event(self, data):
         pred = self.model.predict(data.reshape(1,-1,1))
-        print(pred)
         if np.max(pred) >= self.detection_threshold:
             event_idx = np.argmax(pred)
             event = self.events[event_idx]
@@ -38,22 +39,14 @@ class TF_Model():
 
 
     def infer(self, dynamic_data, static_data):
-        if self.uses_static_data:
-            return self.detect_event(static_data)
+        if 'static' in self.sensors and len(static_data) >= self.static_input_size:
+            data = static_data[-self.static_input_size:]
+            data = np.array([x['average'] for x in data])
+            return self.detect_event(data)
 
-        if self.uses_dynamic_data:
-            return self.detect_event(dynamic_data)
-
-
-test_metadata = {'input_size': 901,
-                 'events': ['PUMPDOWN_PERFS_PLUGS_START' , 'PUMPDOWN_PERFS_PLUGS_STOP',
-                            'PERF_GUN_FIRING' , 'FRAC_STAGE_START' , 'FRAC_STAGE_STOP',
-                            'FORMATION_BREAKDOWN', 'PRESSURIZATION STEP', 'GEAR_SHIFT'],
-                 'static_data': True,
-                 'detection_threshold': 0.5}
-
-m = '/home/dan/Downloads/static_varLength_s.h5'
-
+        if 'dynamic' in self.sensors and len(dynamic_data) >= self.dynamic_input_size:
+            data = dynamic_data[-self.dynamic_input_size:]
+            return self.detect_event(data)
 
 
 def list_models(model_type):
@@ -68,31 +61,56 @@ def list_model_versions(model_type, model_name):
     return versions
 
 
-def download_model(model_type, model_name, version=None):
+def download_metadata(model_type, model_name, version=None):
     if not version:
         versions = list_model_versions(model_type, model_name)
         version = sorted(versions)[-1]
 
-    prefix = f"{model_type}/{model_name}/{version}/"
-    model_key = prefix + f"{model_name}-{version}"
-    metadata_key = prefix + "metadata.json"
-
-    #download metadata
+    metadata_key = f"{model_type}/{model_name}/{version}/metadata.json"
     with io.BytesIO() as f:
         s3_bucket.download_fileobj(metadata_key, f)
         f.seek(0)
         metadata = json.loads(f.read())
 
+    return metadata
+
+
+def download_py_model(model_name, version=None):
+    if not version:
+        versions = list_model_versions('py', model_name)
+        version = sorted(versions)[-1]
+
+    prefix = f"py/{model_name}/{version}/"
+    model_key = prefix + f"{model_name}-{version}"
+
+    metadata = download_metadata('tf', model_name, version)
+
     #download model
     with io.BytesIO() as f:
         s3_bucket.download_fileobj(model_key, f)
         f.seek(0)
-        if model_type == "py":
-            model = pickle.loads(f.read())
-        if model_type == "tf":
-            model = TF_Model(f, metadata)
+        model = pickle.loads(f.read())
 
     return model, metadata
+
+
+def download_tf_model(model_name, version=None):
+    if not version:
+        versions = list_model_versions('tf', model_name)
+        version = sorted(versions)[-1]
+
+    prefix = f"tf/{model_name}/{version}/"
+    model_key = prefix + f"{model_name}-{version}"
+
+    metadata = download_metadata('tf', model_name, version)
+
+    with tempfile.NamedTemporaryFile(suffix=".h5") as f:
+            s3_bucket.download_fileobj(model_key, f)
+            f.seek(0)
+            keras_model = tf.keras.models.load_model(f.name)
+
+    return keras_model, metadata
+
 
 def put_py_model(model, name, version, metadata):
     """At minimum metadata needs these keys
@@ -105,4 +123,21 @@ def put_py_model(model, name, version, metadata):
     model_key = prefix + f"{name}-{version}"
     metadata_key = prefix + "metadata.json"
     s3_bucket.put_object(Key=model_key, Body=pickled_model)
+    s3_bucket.put_object(Key=metadata_key, Body = json.dumps(metadata))
+
+
+def put_tf_model(model_h5, name, version, metadata):
+    """Uploads .h5 model to s3
+       At minimum metadata needs these keys
+       frequency: int
+       window_size: int
+       sensors: array of 'static' and/or 'dynamic' ex ['static', 'dynamic']
+       events: array of event names corresponding to model output
+       detection_threshold: float - how high model output must be before we count as actual event detection
+       dynamic_input_size: int - if dynamic model is used
+    """
+    prefix = f"tf/{name}/{version}/"
+    model_key = prefix + f"{name}-{version}"
+    metadata_key = prefix + "metadata.json"
+    s3_client.upload_file(model_h5, S3_BUCKET, model_key)
     s3_bucket.put_object(Key=metadata_key, Body = json.dumps(metadata))

@@ -19,6 +19,7 @@ import psycopg2 as pg
 import psycopg2.extras
 import uuid
 import s3_models
+import psutil
 
 from dynamic_utils import DynamicRingBuffer, parse_time_string_with_colon_offset, interval_to_buckets, timebucket_files, s3_path_to_datetime, get_npz
 
@@ -546,8 +547,17 @@ def model_runner_process(job_config):
     model_type = job_config['model_type']
     model_name = job_config['model_name']
     model_version = job_config['model_version']
-    model_class, _ = s3_models.download_model(model_type, model_name, model_version)
-    model_instance = model_class(job_config['window_size'])
+    #TODO: redo pickled py model class to take dictionary for config like tf model
+    if model_type == 'py':
+        model_class, _ = s3_models.download_py_model(model_name, model_version)
+        model_instance = model_class(job_config['window_size'])
+
+    if model_type =='tf':
+        keras_model, metadata = s3_models.download_tf_model(model_name, model_version)
+        #merge metadata and job specific config
+        model_config = {**metadata, **job_config}
+        model_instance = s3_models.TF_Model(keras_model, model_config)
+
     runnable_model = ModelRunner(job_config, model_instance, live_data=True)
     frequency = runnable_model.frequency
 
@@ -557,7 +567,6 @@ def model_runner_process(job_config):
     job = schedule.every(frequency).seconds.do(run_threaded, runnable_model.detect_and_insert_events)
     #kick off job immediately instead of waiting 'frequency' seconds
     job.run()
-
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         hub_status = None
@@ -616,7 +625,7 @@ def pull_next_job(failed=False):
 
 
 def scheduler_queue():
-    max_jobs = os.environ.get('max_jobs', 4)
+    max_jobs = psutil.cpu_count(logical=False)
     current_jobs = 0
     futures = []
 
