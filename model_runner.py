@@ -137,7 +137,7 @@ class ModelData():
         self.live_data = live_data
 
         self.retries = 0
-        self.max_retries = 5
+        self.max_retries = 30
 
 
         if not self.end:
