@@ -591,7 +591,6 @@ def model_runner_process(job_config):
         logging.error("Error in model_runner_process: " +  str(e))
 
 
-
 def pull_next_job(failed=False):
     pending_q = """UPDATE monitoring.model_queue
            SET status = 'RUNNING'
@@ -631,7 +630,7 @@ def pull_next_job(failed=False):
 
 
 def scheduler_queue():
-    max_jobs = psutil.cpu_count(logical=False)
+    max_jobs = psutil.cpu_count()
     current_jobs = 0
     futures = []
 
