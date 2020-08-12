@@ -34,7 +34,7 @@ psycopg2.extensions.register_type(
     psycopg2.extensions.new_array_type(
         (2951,), 'UUID[]', psycopg2.STRING))
 
-def db_query(q, args=None, fetch_results=True):
+def db_query(q, args=None, fetch_results=True, insert_multiple=False):
     with pg.connect(dbname=os.environ['db_name'],
                     user=os.environ['db_user'],
                     password=os.environ['db_password'],
@@ -44,10 +44,14 @@ def db_query(q, args=None, fetch_results=True):
         conn.set_session(autocommit = True)
 
         with conn.cursor(cursor_factory=pg.extras.RealDictCursor) as cur:
-            if args:
-                cur.execute(q, args)
-            else:
-                cur.execute(q)
+            if not insert_multiple:
+                if args:
+                    cur.execute(q, args)
+                else:
+                    cur.execute(q)
+
+            if insert_multiple:
+                psycopg2.extras.execute_values(cur, q, args)
 
             if fetch_results:
                 res = cur.fetchall()
@@ -107,6 +111,87 @@ def interval_to_flat_array_threaded(sensor_id, start, end, sample_rate=57000, mu
         latest_file = None
 
     return buffer, num_files, average_sample_rate, earliest_file, latest_file
+
+def tst_sample_rate():
+    freq = 2
+    x1 = np.linspace(0,3,100)
+    y1 = np.sin(2*np.pi*x1*freq)
+
+    x2 = np.linspace(0,3,25)
+    y2 = signal.resample(y1, 25)
+
+    x3 = np.linspace(0,3,200)
+    y3 = signal.resample(y1, 200)
+    from matplotlib import pyplot as plt
+    plt.plot(x1,y1, '-*')
+    plt.plot(x2, y2, '-*')
+    plt.plot(x3, y3, '-*')
+    plt.show()
+
+
+def interval_to_flat_array_resample(sensor_id, start, end, target_sample_rate=40000, multiprocessing=True):
+    """Returns all dynamic data for a sensor_id, start, and end time in a ring buffer
+     Resamples data to target_sample_rate"""
+    import concurrent.futures
+    from scipy import signal
+    assert end > start
+    file_start = start.astimezone(pytz.utc).replace(microsecond=0)
+
+    def within_interval(s3_path):
+        t = s3_path_to_datetime(s3_path)
+        t = t.replace(microsecond=0)
+        return t >= file_start and t <= end
+
+    timebuckets = interval_to_buckets(file_start, end)
+
+    t0 = time.time()
+
+    if multiprocessing:
+        with mp.Pool(64) as pool:
+            files = pool.starmap(timebucket_files, [(sensor_id, timebucket) for timebucket in timebuckets])
+            files = [val for sublist in files for val in sublist]
+            files_within_interval = [f for f in files if within_interval(f)]
+            logging.debug("Downloading " + str(len(files_within_interval)) +  " files")
+            data = pool.map(get_npz, files_within_interval)
+
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
+            #args = [(sensor_id, timebucket) for timebucket in timebuckets]
+            sensor_ids = [sensor_id for i in range(len(timebuckets))]
+            files = executor.map(timebucket_files, sensor_ids, timebuckets)
+            files = [val for sublist in files for val in sublist]
+            files_within_interval = [f for f in files if within_interval(f)]
+            logging.debug("Downloading " + str(len(files_within_interval)) +  " files")
+            data = executor.map(get_npz, files_within_interval)
+
+    logging.debug("time to download: " + str(time.time() - t0))
+
+    #fit data within exact request interval instead of s3 file boundaries
+    last_file_time = s3_path_to_datetime(files_within_interval[-1])
+
+    start_delta = (start - file_start)
+    end_delta = (end - last_file_time)
+
+    num_seconds = (end - start).total_seconds()
+    num_samples = int(target_sample_rate * num_seconds)
+
+    buffer = DynamicRingBuffer(num_samples)
+    for d in data:
+        buffer.append(signal.resample(d, target_sample_rate))
+
+    buffer.popleftn(int(start_delta.total_seconds() * target_sample_rate))
+    buffer.popn(int(end_delta.total_seconds() * target_sample_rate))
+
+    return buffer
+
+
+def test2():
+    start = parse_time_string_with_colon_offset("2020-03-23T15:55:20-05:00")
+    end = start + timedelta(seconds=5)
+    sensor_id = "44a6c356-8a7b-4565-8a94-7f8eab2a3028"
+    interval_to_flat_array_resample(sensor_id, start, end, )
+
+
 
 
 class ModelData():
@@ -455,6 +540,57 @@ def partition(lst, n):
         yield lst[i:i + n]
 
 
+def well_sensors(well_id):
+    q = """SELECT sensors.id, pressure_type, archived
+           FROM monitoring.wells
+           JOIN monitoring.sensors ON sensors.well_id = wells.id
+           JOIN monitoring.sensor_models ON sensor_models.id = sensors.sensor_model_id
+           WHERE wells.id =%s"""
+
+    return db_query(q, (well_id,))
+
+
+def sensor_time_bounds(sensor_id):
+    "Finds earliest and latest data points for sensor"
+    sensor_id = str(sensor_id)
+    start_q = """SELECT time
+                 FROM monitoring.sensor_data
+                 WHERE sensor_id = %s
+                 ORDER BY TIME ASC
+                 LIMIT 1"""
+
+    end_q = """SELECT time
+               FROM monitoring.sensor_data
+               WHERE sensor_id = %s
+               ORDER BY TIME desc
+               LIMIT 1"""
+
+    start = (db_query(start_q, (sensor_id,)))
+    end = (db_query(end_q, (sensor_id,)))
+
+    if start:
+        return start[0]['time'], end[0]['time']
+
+
+class HistoricalModelRunner2():
+    def __init__(self, well_id, start_time, end_time, model_name, model_version=None, window_multipler=5):
+        sensors = well_sensors(well_id)
+        dynamic_sensors = []
+        static_sensors = []
+        for sensor in well_sensors:
+            start, end = sensor_time_bounds(sensor['id'])
+            if sensor['pressure_type'] == 'dynamic':
+                dynamic_sensors.append({'id': sensor['id'],
+                                    'start': start,
+                                    'end': end,})
+            else:
+                static_sensors.append({'id': sensor['id'],
+                                    'start': start,
+                                    'end': end,})
+
+
+
+
 class HistoricalModelRunner(ModelRunner):
     """
     Everything needed to run model on data
@@ -478,6 +614,7 @@ class HistoricalModelRunner(ModelRunner):
         self.static_id = None
         self.dynamic_id = None
         self.window_multipler=window_multipler
+        self.current_start_time = initialization_time
 
         if static_ids:
             self.static_id = static_ids[0]
@@ -499,6 +636,7 @@ class HistoricalModelRunner(ModelRunner):
 
         partitioned_dynamic = np.array(dynamic_data).reshape((self.window_multipler, -1))
         partitioned_static = partition(static_data, self.window_multipler)
+        print(len(dynamic_data))
 
         results = []
         for dynamic, static in zip(partitioned_dynamic, partitioned_static):
@@ -506,6 +644,84 @@ class HistoricalModelRunner(ModelRunner):
             results.append(res)
 
         return results
+
+    def update_data_and_infer(self):
+        self.model_data.update_data()
+        results = self.infer()
+        results_start_time = self.current_start_time
+        self.current_start_time += timedelta(seconds=self.window_size + self.window_multipler)
+        return results_start_time, results
+
+    def create_db_rows(self, start_time, results):
+        rows = []
+        for i, result in enumerate(results):
+            rows.append(
+                (start_time + timedelta(seconds=self.window_size),
+                 result['event'],
+                 self.well_id,
+                 result['value'],
+                 self.version)
+            )
+        return rows
+
+
+    def insert_timeseries_events(self, events):
+        q = """INSERT INTO monitoring.timeseries_events
+               (time, event, well_id, value, model_version)
+               VALUES %s"""
+
+        args = (self.model_data.end.astimezone(pytz.utc),
+                event['event'],
+                self.well_id,
+                event['value'],
+                self.version)
+
+        db_query(q, args, fetch_results=False, insert_multiple=True)
+
+
+from frac_score import FracScore
+hw33_config = {"start": parse_time_string_with_colon_offset("2020-01-02T06:01:00-05:00"),
+               "end":   parse_time_string_with_colon_offset("2020-01-12T21:53:00-05:00"),
+               "dynamic_sensor_ids": ["4b65d71e-9512-4101-a32d-c6a06a1bfd71"],
+               "static_sensor_ids": ["2db7044a-b4cc-4173-843a-3a82bb658df4"],
+               "frequency": 1,
+               "window_size": 1,
+               "well_id": None,
+               "id": None,
+               "hub_id": None,
+               "timeseries": True}
+
+hw33_config = {"start": parse_time_string_with_colon_offset("2020-01-02T06:01:00-05:00"),
+               "end":   parse_time_string_with_colon_offset("2020-01-12T21:53:00-05:00"),
+               "dynamic_sensor_ids": ["4b65d71e-9512-4101-a32d-c6a06a1bfd71"],
+               "static_sensor_ids": ["2db7044a-b4cc-4173-843a-3a82bb658df4"],
+               "frequency": 1,
+               "window_size": 1,
+               "well_id": None,
+               "id": None,
+               "hub_id": None,
+               "timeseries": True}
+
+
+def tst():
+    conf = hw33_config
+    start_time = conf['start']
+    current_time = start_time
+    model = FracScore(window_size=1)
+    model_runner = HistoricalModelRunner(conf, model, initialization_time=conf.get('start'), window_multipler=5)
+    while current_time <= conf['end']:
+        results = model_runner.update_data_and_infer()
+        print(results)
+
+def tst2():
+    conf = hw33_config
+    files = []
+    for bucket in interval_to_buckets(conf['start'], conf['end']):
+        print(timebucket_files("4b65d71e-9512-4101-a32d-c6a06a1bfd71", bucket))
+        #files.append(timebucket_files("4b65d71e-9512-4101-a32d-c6a06a1bfd71", bucket))
+    #return files
+
+
 
 
 def monitoring_group_status(monitoring_group_id):
@@ -662,6 +878,8 @@ def scheduler_queue():
                     f.cancel()
                 print(e)
                 break
+
+
 
 
 if __name__ == "__main__":
