@@ -82,16 +82,18 @@ class DynamicRingBuffer(RingBuffer):
             num_fits_in_end = 0
         num_doesnt_fit = len(v) - num_fits_in_end
 
+        #add data that fits in end of buffer
         if num_fits_in_end > 0:
             self._arr[self._right_index : self._right_index + num_fits_in_end] = v[:num_fits_in_end]
         self._right_index += num_fits_in_end
 
 
-        print(num_doesnt_fit)
-        self._arr = np.concatenate((self._arr, v[num_fits_in_end:]))
-        self._arr = self._arr[-self._capacity:]
-        self._right_index = self._capacity
-        self._left_index = 0
+        #if we try to add more data that cant fit at end of buffer wrap concat it and resize buffer
+        if num_doesnt_fit > 0:
+            self._arr = np.concatenate((self._arr, v[num_fits_in_end:]))
+            self._arr = self._arr[-self._capacity:]
+            self._right_index = self._capacity
+            self._left_index = 0
 
 
     def popn(self, n):

@@ -152,7 +152,7 @@ def interval_to_flat_array_resample(sensor_id, start, end, target_sample_rate=40
             files = [val for sublist in files for val in sublist]
             files_within_interval = [f for f in files if within_interval(f)]
             logging.debug("Downloading " + str(len(files_within_interval)) +  " files")
-            data = pool.map(get_npz, files_within_interval)
+            arrays = pool.map(get_npz, files_within_interval)
 
     else:
         with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
@@ -162,34 +162,46 @@ def interval_to_flat_array_resample(sensor_id, start, end, target_sample_rate=40
             files = [val for sublist in files for val in sublist]
             files_within_interval = [f for f in files if within_interval(f)]
             logging.debug("Downloading " + str(len(files_within_interval)) +  " files")
-            data = executor.map(get_npz, files_within_interval)
+            arrays = executor.map(get_npz, files_within_interval)
 
     logging.debug("time to download: " + str(time.time() - t0))
 
-    #fit data within exact request interval instead of s3 file boundaries
+    #Need to handle when requeted start,end dont align with uploaded file times
     last_file_time = s3_path_to_datetime(files_within_interval[-1])
+    downloaded_data_end_time = last_file_time + timedelta(seconds=1)
+    file_end_delta = downloaded_data_end_time - end
+    file_start_delta = (start - file_start)
 
-    start_delta = (start - file_start)
-    end_delta = (end - last_file_time)
+    buffer_size = int(target_sample_rate * (end - start).total_seconds())
+    buffer = DynamicRingBuffer(buffer_size)
 
-    num_seconds = (end - start).total_seconds()
-    num_samples = int(target_sample_rate * num_seconds)
+    for s3_path, array in zip(files_within_interval, arrays):
+        resampled = signal.resample(array, target_sample_rate)
 
-    buffer = DynamicRingBuffer(num_samples)
-    for d in data:
-        buffer.append(signal.resample(d, target_sample_rate))
+        if s3_path == files_within_interval[0]:
+            num_dropped_samples = int(file_start_delta.total_seconds() * target_sample_rate)
+            data_to_append = resampled[num_dropped_samples:]
 
-    buffer.popleftn(int(start_delta.total_seconds() * target_sample_rate))
-    buffer.popn(int(end_delta.total_seconds() * target_sample_rate))
+        elif s3_path == files_within_interval[-1]:
+            end_delta = (end - last_file_time)
+            num_dropped_samples = int(file_end_delta.total_seconds() * target_sample_rate)
+            data_to_append = resampled[0: target_sample_rate - num_dropped_samples]
+
+        else:
+            data_to_append = resampled
+
+        buffer.append(data_to_append)
+
 
     return buffer
 
 
 def test2():
     start = parse_time_string_with_colon_offset("2020-03-23T15:55:20-05:00")
-    end = start + timedelta(seconds=5)
+    start = start + timedelta(seconds=0.1)
+    end = start + timedelta(seconds=5.5)
     sensor_id = "44a6c356-8a7b-4565-8a94-7f8eab2a3028"
-    interval_to_flat_array_resample(sensor_id, start, end, )
+    return interval_to_flat_array_resample(sensor_id, start, end, )
 
 
 
