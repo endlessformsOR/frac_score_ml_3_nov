@@ -5,6 +5,8 @@ import os
 import time
 from collections import deque
 from multiprocessing import Pool
+import logging
+
 import io
 import boto3
 import multiprocessing as mp
@@ -20,7 +22,13 @@ import psycopg2.extras
 import uuid
 
 from numpy_ringbuffer import RingBuffer
+from scipy import signal
 
+
+logging.basicConfig(format='%(levelname)s %(asctime)s: %(message)s', level=logging.INFO)
+logging.getLogger("schedule").setLevel(logging.WARNING)
+logging.getLogger("boto3").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
 
 
 ENV = os.environ.get('LEGEND_ENV', "dev")
@@ -45,6 +53,7 @@ s3_client = boto3.client('s3',
                          aws_access_key_id=ACCESS_KEY,
                          aws_secret_access_key=SECRET_KEY)
 s3_bucket = s3_resource.Bucket(S3_BUCKET)
+
 
 
 class DynamicRingBuffer(RingBuffer):
@@ -250,159 +259,68 @@ def s3_path_to_datetime(path):
     return t_utc
 
 
-def interval_to_flat_array(sensor_id, start, end, sample_rate=57000):
-    "Returns all dynamic data for a sensor_id, start, and end time in a ring buffer"
+def interval_to_flat_array(sensor_id, start, end, target_sample_rate=40000, multiprocessing=True, return_num_files=False):
+    """Returns all dynamic data for a sensor_id, start, and end time in a ring buffer
+     Resamples data to target_sample_rate"""
+
     assert end > start
-    start = start.astimezone(pytz.utc).replace(microsecond=0)
-    end = end.astimezone(pytz.utc).replace(microsecond=0)
+    file_start = start.astimezone(pytz.utc).replace(microsecond=0)
 
     def within_interval(s3_path):
         t = s3_path_to_datetime(s3_path)
         t = t.replace(microsecond=0)
-        return t >= start and t < end
+        return t >= file_start and t <= end
 
-    timebuckets = interval_to_buckets(start,end)
-
-
-    num_seconds = (end - start).seconds
-    num_samples = sample_rate * num_seconds
-    buffer = FlatRingBuffer(num_samples)
+    timebuckets = interval_to_buckets(file_start, end)
 
     t0 = time.time()
 
-    with mp.Pool(64) as pool:
-        files = pool.starmap(timebucket_files, [(sensor_id, timebucket) for timebucket in timebuckets])
-        files = [val for sublist in files for val in sublist]
-        files_within_interval = [f for f in files if within_interval(f)]
-        print("Downloading ", len(files_within_interval), " files")
-        data = pool.map(get_npz, files)
-    print("Files downloaded in ", time.time() - t0)
+    if multiprocessing:
+        with mp.Pool(64) as pool:
+            files = pool.starmap(timebucket_files, [(sensor_id, timebucket) for timebucket in timebuckets])
+            files = [val for sublist in files for val in sublist]
+            files_within_interval = [f for f in files if within_interval(f)]
+            logging.debug("Downloading " + str(len(files_within_interval)) +  " files")
+            arrays = pool.map(get_npz, files_within_interval)
 
-    for d in data:
-        buffer.add(d)
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
+            sensor_ids = [sensor_id for i in range(len(timebuckets))]
+            files = executor.map(timebucket_files, sensor_ids, timebuckets)
+            files = [val for sublist in files for val in sublist]
+            files_within_interval = [f for f in files if within_interval(f)]
+            logging.debug("Downloading " + str(len(files_within_interval)) +  " files")
+            arrays = executor.map(get_npz, files_within_interval)
 
-    return buffer
+    logging.debug("time to download: " + str(time.time() - t0))
 
+    #Need to handle when requeted start,end dont align with uploaded file times
+    last_file_time = s3_path_to_datetime(files_within_interval[-1])
+    downloaded_data_end_time = last_file_time + timedelta(seconds=1)
+    file_end_delta = downloaded_data_end_time - end
+    file_start_delta = (start - file_start)
 
-def interval_to_flat_array_threaded(sensor_id, start, end, sample_rate=57000):
-    "Returns all dynamic data for a sensor_id, start, and end time in a ring buffer"
-    import concurrent.futures
-    assert end > start
-    start = start.astimezone(pytz.utc).replace(microsecond=0)
-    end = end.astimezone(pytz.utc).replace(microsecond=0)
+    buffer_size = int(target_sample_rate * (end - start).total_seconds())
+    buffer = DynamicRingBuffer(buffer_size)
 
-    def within_interval(s3_path):
-        t = s3_path_to_datetime(s3_path)
-        t = t.replace(microsecond=0)
-        return t >= start and t < end
+    for s3_path, array in zip(files_within_interval, arrays):
+        resampled = signal.resample(array, target_sample_rate)
 
-    timebuckets = interval_to_buckets(start,end)
+        if s3_path == files_within_interval[0]:
+            num_dropped_samples = int(file_start_delta.total_seconds() * target_sample_rate)
+            data_to_append = resampled[num_dropped_samples:]
 
-    num_seconds = (end - start).seconds
-    num_samples = sample_rate * num_seconds
-    buffer = FlatRingBuffer(num_samples)
+        elif s3_path == files_within_interval[-1]:
+            end_delta = (end - last_file_time)
+            num_dropped_samples = int(file_end_delta.total_seconds() * target_sample_rate)
+            data_to_append = resampled[0: target_sample_rate - num_dropped_samples]
 
-    t0 = time.time()
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        #args = [(sensor_id, timebucket) for timebucket in timebuckets]
-        sensor_ids = [sensor_id for i in range(len(timebuckets))]
-        files = executor.map(timebucket_files, sensor_ids, timebuckets)
-        files = [val for sublist in files for val in sublist]
-        files_within_interval = [f for f in files if within_interval(f)]
-        print("Downloading ", len(files_within_interval), " files")
-        data = executor.map(get_npz, files)
-
-
-    print("Files downloaded in ", time.time() - t0)
-
-    for d in data:
-        buffer.add(d)
-
-    return buffer
-
-
-def interval_to_flat_array_single(sensor_id, start, end, sample_rate=57000):
-    "Returns all dynamic data for a sensor_id, start, and end time in a ring buffer"
-    assert end > start
-    start = start.astimezone(pytz.utc).replace(microsecond=0)
-    end = end.astimezone(pytz.utc).replace(microsecond=0)
-
-    def within_interval(s3_path):
-        t = s3_path_to_datetime(s3_path)
-        t = t.replace(microsecond=0)
-        return t >= start and t < end
-
-    timebuckets = interval_to_buckets(start,end)
-
-
-    num_seconds = (end - start).seconds
-    num_samples = sample_rate * num_seconds
-    buffer = FlatRingBuffer(num_samples)
-
-    t0 = time.time()
-
-    files = [timebucket_files(sensor_id, timebucket) for timebucket in timebuckets]
-    files = [val for sublist in files for val in sublist]
-    files_within_interval = [f for f in files if within_interval(f)]
-    data = [get_npz(f) for f in files]
-    print("Files downloaded in ", time.time() - t0)
-
-    for d in data:
-        buffer.add(d)
-
-    return buffer
-
-"""
-#not used?
-class DataPuller():
-    def __init__(self, buffer_capacity=60*57000, delay=0):
-        self.delay = delay
-        self.latest = (datetime.now() - timedelta(seconds=delay)).astimezone(pytz.utc)
-        self.buffer = FlatRingBuffer(buffer_capacity)
-
-
-    def get_latest_file(self, sensor_id, timebucket):
-        "Gets latest file in timebucket"
-        prefix = f"{sensor_id}/{timebucket}"
-        files = s3_bucket.objects.filter(Prefix=prefix)
-        files = [obj for obj in sorted(files, key=lambda x: x.last_modified, reverse=True)]
-
-        if len(files) > 0:
-            return files[0].key
         else:
-            return None
+            data_to_append = resampled
 
+        buffer.append(data_to_append)
 
-    #check current timebucket then check prior if no file
-    def add_latest_to_buffer(self, sensor_id):
-        now = datetime.now().astimezone(pytz.utc)
-        current_bucket = datetime_to_s3_time_bucket(now)
-        previous_bucket = datetime_to_s3_time_bucket(now - timedelta(seconds=10))
-
-        for bucket in [current_bucket, previous_bucket]:
-            latest_file = self.get_latest_file(sensor_id, bucket)
-            if latest_file:
-                filetime = s3_path_to_datetime(latest_file)
-                if filetime > self.latest:
-                    #print(latest_file)
-                    #data = load_s3_npz(f"{S3_BUCKET}/{latest_file}")
-                    data = get_npz(s3_bucket, latest_file)
-                    self.buffer.append(data)
-                    self.latest = filetime
-                    break
-
-
-    def get_next_file(self, sensor_id):
-        current_bucket = datetime_to_s3_time_bucket(self.latest)
-        next_bucket = datetime_to_s3_time_bucket(self.latest +  timedelta(seconds=10))
-        for bucket in [current_bucket, next_bucket]:
-            files = sorted(timebucket_files(sensor_id, bucket))
-            for f in files:
-                filetime = s3_path_to_datetime(f)
-                if filetime > self.latest:
-                    data = get_npz(f)
-                    self.buffer.append(data)
-                    self.latest = filetime
-                    break
-"""
+    if return_num_files:
+        return buffer, len(arrays)
+    else:
+        return buffer

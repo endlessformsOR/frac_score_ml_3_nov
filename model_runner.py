@@ -21,7 +21,7 @@ import uuid
 import s3_models
 import psutil
 
-from dynamic_utils import DynamicRingBuffer, parse_time_string_with_colon_offset, interval_to_buckets, timebucket_files, s3_path_to_datetime, get_npz
+from dynamic_utils import DynamicRingBuffer, parse_time_string_with_colon_offset, interval_to_buckets, timebucket_files, s3_path_to_datetime, get_npz, interval_to_flat_array
 
 logging.basicConfig(format='%(levelname)s %(asctime)s: %(message)s', level=logging.INFO)
 logging.getLogger("schedule").setLevel(logging.WARNING)
@@ -57,154 +57,6 @@ def db_query(q, args=None, fetch_results=True, insert_multiple=False):
                 res = cur.fetchall()
                 return res
 
-def interval_to_flat_array_threaded(sensor_id, start, end, sample_rate=57000, multiprocessing=False):
-    "Returns all dynamic data for a sensor_id, start, and end time in a ring buffer"
-    import concurrent.futures
-    assert end > start
-    start = start.astimezone(pytz.utc).replace(microsecond=0)
-
-    def within_interval(s3_path):
-        t = s3_path_to_datetime(s3_path)
-        t = t.replace(microsecond=0)
-        return t >= start and t <= end
-
-    timebuckets = interval_to_buckets(start,end)
-
-    num_seconds = (end - start).seconds
-    num_samples = sample_rate * num_seconds
-    buffer = DynamicRingBuffer(num_samples)
-
-    t0 = time.time()
-
-    if multiprocessing:
-        with mp.Pool(64) as pool:
-            files = pool.starmap(timebucket_files, [(sensor_id, timebucket) for timebucket in timebuckets])
-            files = [val for sublist in files for val in sublist]
-            files_within_interval = [f for f in files if within_interval(f)]
-            logging.debug("Downloading " + str(len(files_within_interval)) +  " files")
-            data = pool.map(get_npz, files_within_interval)
-
-    else:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
-            #args = [(sensor_id, timebucket) for timebucket in timebuckets]
-            sensor_ids = [sensor_id for i in range(len(timebuckets))]
-            files = executor.map(timebucket_files, sensor_ids, timebuckets)
-            files = [val for sublist in files for val in sublist]
-            files_within_interval = [f for f in files if within_interval(f)]
-            logging.debug("Downloading " + str(len(files_within_interval)) +  " files")
-            data = executor.map(get_npz, files_within_interval)
-
-    logging.debug("time to download: " + str(time.time() - t0))
-
-    for d in data:
-        buffer.append(d)
-
-    num_files = len(files_within_interval)
-    if num_files > 0:
-        average_sample_rate = len(buffer) / num_files
-        earliest_file = s3_path_to_datetime(files_within_interval[0])
-        latest_file = s3_path_to_datetime(files_within_interval[-1])
-
-    else:
-        average_sample_rate = 0
-        earliest_file = None
-        latest_file = None
-
-    return buffer, num_files, average_sample_rate, earliest_file, latest_file
-
-def tst_sample_rate():
-    freq = 2
-    x1 = np.linspace(0,3,100)
-    y1 = np.sin(2*np.pi*x1*freq)
-
-    x2 = np.linspace(0,3,25)
-    y2 = signal.resample(y1, 25)
-
-    x3 = np.linspace(0,3,200)
-    y3 = signal.resample(y1, 200)
-    from matplotlib import pyplot as plt
-    plt.plot(x1,y1, '-*')
-    plt.plot(x2, y2, '-*')
-    plt.plot(x3, y3, '-*')
-    plt.show()
-
-
-def interval_to_flat_array_resample(sensor_id, start, end, target_sample_rate=40000, multiprocessing=True):
-    """Returns all dynamic data for a sensor_id, start, and end time in a ring buffer
-     Resamples data to target_sample_rate"""
-    import concurrent.futures
-    from scipy import signal
-    assert end > start
-    file_start = start.astimezone(pytz.utc).replace(microsecond=0)
-
-    def within_interval(s3_path):
-        t = s3_path_to_datetime(s3_path)
-        t = t.replace(microsecond=0)
-        return t >= file_start and t <= end
-
-    timebuckets = interval_to_buckets(file_start, end)
-
-    t0 = time.time()
-
-    if multiprocessing:
-        with mp.Pool(64) as pool:
-            files = pool.starmap(timebucket_files, [(sensor_id, timebucket) for timebucket in timebuckets])
-            files = [val for sublist in files for val in sublist]
-            files_within_interval = [f for f in files if within_interval(f)]
-            logging.debug("Downloading " + str(len(files_within_interval)) +  " files")
-            arrays = pool.map(get_npz, files_within_interval)
-
-    else:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
-            #args = [(sensor_id, timebucket) for timebucket in timebuckets]
-            sensor_ids = [sensor_id for i in range(len(timebuckets))]
-            files = executor.map(timebucket_files, sensor_ids, timebuckets)
-            files = [val for sublist in files for val in sublist]
-            files_within_interval = [f for f in files if within_interval(f)]
-            logging.debug("Downloading " + str(len(files_within_interval)) +  " files")
-            arrays = executor.map(get_npz, files_within_interval)
-
-    logging.debug("time to download: " + str(time.time() - t0))
-
-    #Need to handle when requeted start,end dont align with uploaded file times
-    last_file_time = s3_path_to_datetime(files_within_interval[-1])
-    downloaded_data_end_time = last_file_time + timedelta(seconds=1)
-    file_end_delta = downloaded_data_end_time - end
-    file_start_delta = (start - file_start)
-
-    buffer_size = int(target_sample_rate * (end - start).total_seconds())
-    buffer = DynamicRingBuffer(buffer_size)
-
-    for s3_path, array in zip(files_within_interval, arrays):
-        resampled = signal.resample(array, target_sample_rate)
-
-        if s3_path == files_within_interval[0]:
-            num_dropped_samples = int(file_start_delta.total_seconds() * target_sample_rate)
-            data_to_append = resampled[num_dropped_samples:]
-
-        elif s3_path == files_within_interval[-1]:
-            end_delta = (end - last_file_time)
-            num_dropped_samples = int(file_end_delta.total_seconds() * target_sample_rate)
-            data_to_append = resampled[0: target_sample_rate - num_dropped_samples]
-
-        else:
-            data_to_append = resampled
-
-        buffer.append(data_to_append)
-
-
-    return buffer
-
-
-def test2():
-    start = parse_time_string_with_colon_offset("2020-03-23T15:55:20-05:00")
-    start = start + timedelta(seconds=0.1)
-    end = start + timedelta(seconds=5.5)
-    sensor_id = "44a6c356-8a7b-4565-8a94-7f8eab2a3028"
-    return interval_to_flat_array_resample(sensor_id, start, end, )
-
-
-
 
 class ModelData():
     """
@@ -218,15 +70,15 @@ class ModelData():
                  window_size,
                  dynamic_id=None,
                  static_id=None,
-                 max_sample_rate=57000,
+                 target_sample_rate=40000,
                  initialization_time = None,
                  live_data=True):
         self.frequency = frequency
         self.window_size = window_size
         self.dynamic_id = dynamic_id
         self.static_id = static_id
-        self.max_sample_rate = max_sample_rate
-        self.dynamic_buffer = DynamicRingBuffer(window_size * max_sample_rate)
+        self.target_sample_rate = target_sample_rate
+        self.dynamic_buffer = DynamicRingBuffer(window_size * target_sample_rate)
         self.static_buffer = deque(maxlen=window_size)
         self.end = initialization_time
         self.initialized = False
@@ -260,8 +112,8 @@ class ModelData():
 
         if self.dynamic_id:
             for i in range(seconds_to_drop):
-                if len(self.dynamic_buffer) > self.max_sample_rate:
-                    self.dynamic_buffer.popleftn(self.max_sample_rate)
+                if len(self.dynamic_buffer) > self.target_sample_rate:
+                    self.dynamic_buffer.popleftn(self.target_sample_rate)
 
 
     def increment_interval_live(self, num_new_files=0):
@@ -301,8 +153,8 @@ class ModelData():
 
             if self.dynamic_id:
                 for i in range(delta.seconds):
-                    if len(self.dynamic_buffer) >= self.max_sample_rate:
-                        self.dynamic_buffer.popleftn(self.max_sample_rate)
+                    if len(self.dynamic_buffer) >= self.target_sample_rate:
+                        self.dynamic_buffer.popleftn(self.target_sample_rate)
 
         else:
             self.retries += 1
@@ -336,14 +188,15 @@ class ModelData():
         assert self.dynamic_id and self.start and self.end
 
         start, end = self.interval_to_fetch()
-        new_data, num_files, sample_rate, _, _ = interval_to_flat_array_threaded(self.dynamic_id,
-                                                                                 start,
-                                                                                 end,
-                                                                                 sample_rate=self.max_sample_rate,
-                                                                                 multiprocessing=(not self.live_data)
+        new_data, num_files = interval_to_flat_array(self.dynamic_id,
+                                                     start,
+                                                     end,
+                                                     target_sample_rate=self.target_sample_rate,
+                                                     multiprocessing=(not self.live_data),
+                                                     return_num_files = True
         )
 
-        self.sample_rate = sample_rate
+
         self.dynamic_buffer.append(new_data)
         return num_files
 
@@ -470,7 +323,7 @@ class ModelRunner():
 
     def calculate_result_times(self, model_results):
         """For events with big window calculate start/end time of window based"""
-        sample_rate = self.model_data.max_sample_rate
+        sample_rate = self.model_data.target_sample_rate
         start_idx = model_results['start_idx']
         end_idx = model_results['end_idx']
         start_elapsed_sec = start_idx / sample_rate
@@ -648,7 +501,6 @@ class HistoricalModelRunner(ModelRunner):
 
         partitioned_dynamic = np.array(dynamic_data).reshape((self.window_multipler, -1))
         partitioned_static = partition(static_data, self.window_multipler)
-        print(len(dynamic_data))
 
         results = []
         for dynamic, static in zip(partitioned_dynamic, partitioned_static):
@@ -690,7 +542,7 @@ class HistoricalModelRunner(ModelRunner):
 
         db_query(q, args, fetch_results=False, insert_multiple=True)
 
-
+"""
 from frac_score import FracScore
 hw33_config = {"start": parse_time_string_with_colon_offset("2020-01-02T06:01:00-05:00"),
                "end":   parse_time_string_with_colon_offset("2020-01-12T21:53:00-05:00"),
@@ -733,8 +585,7 @@ def tst2():
         #files.append(timebucket_files("4b65d71e-9512-4101-a32d-c6a06a1bfd71", bucket))
     #return files
 
-
-
+"""
 
 def monitoring_group_status(monitoring_group_id):
     q = """
@@ -890,9 +741,6 @@ def scheduler_queue():
                     f.cancel()
                 print(e)
                 break
-
-
-
 
 if __name__ == "__main__":
     scheduler_queue()

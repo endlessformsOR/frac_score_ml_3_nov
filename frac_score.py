@@ -66,7 +66,7 @@ class FracScore():
 
     def infer(self, dynamic_data, static_data):
         if len(dynamic_data) > 0:
-            num_fracs = frac_score(dynamic_data, window_in_seconds=self.window_size, STD_MULTIPLIER=10)
+            num_fracs = frac_score(dynamic_data, window_in_seconds=self.window_size, STD_MULTIPLIER=10, sampling_rate=40000)
             result = {"event": "frac count",
                       "value": num_fracs}
             return result
