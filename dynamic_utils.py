@@ -295,7 +295,7 @@ def interval_to_flat_array(sensor_id, start, end, target_sample_rate=40000, mult
     logging.debug("time to download: " + str(time.time() - t0))
 
     #Need to handle when requeted start,end dont align with uploaded file times
-    last_file_time = s3_path_to_datetime(files_within_interval[-1])
+    last_file_time = s3_path_to_datetime(files_within_interval[-1]).replace(microsecond=0)
     downloaded_data_end_time = last_file_time + timedelta(seconds=1)
     file_end_delta = downloaded_data_end_time - end
     file_start_delta = (start - file_start)
