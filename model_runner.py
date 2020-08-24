@@ -20,6 +20,7 @@ import psycopg2.extras
 import uuid
 import s3_models
 import psutil
+import csv
 
 from dynamic_utils import DynamicRingBuffer, parse_time_string_with_colon_offset, interval_to_buckets, timebucket_files, s3_path_to_datetime, get_npz, interval_to_flat_array
 
@@ -53,7 +54,7 @@ def db_query(q, args=None, fetch_results=True, insert_multiple=False):
             if insert_multiple:
                 psycopg2.extras.execute_values(cur, q, args)
 
-            if fetch_results:
+            if fetch_results and not insert_multiple:
                 res = cur.fetchall()
                 return res
 
@@ -196,7 +197,6 @@ class ModelData():
                                                      return_num_files = True
         )
 
-
         self.dynamic_buffer.append(new_data)
         return num_files
 
@@ -244,7 +244,7 @@ class ModelData():
 
         self.initialized = True
 
-        return num_new_files > 0
+        return num_new_files
 
 
     def dynamic_data(self):
@@ -350,8 +350,8 @@ class ModelRunner():
 
 
     def update_data_and_infer(self):
-        is_new_data = self.model_data.update_data()
-        if is_new_data:
+        num_new_files = self.model_data.update_data()
+        if num_new_files:
             results = self.infer()
             return results
 
@@ -387,8 +387,8 @@ class ModelRunner():
 
 
     def detect_and_insert_events(self):
-        is_new_data = self.model_data.update_data()
-        if is_new_data:
+        num_new_files = self.model_data.update_data()
+        if num_new_files:
             result = self.infer()
             if self.timeseries and result:
                 self.insert_timeseries_event(result)
@@ -404,8 +404,13 @@ def partition(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
+def flatten_list(l):
+    """Flattens list of lists
+       https://stackoverflow.com/a/952952"""
+    return [item for sublist in l for item in sublist]
 
-def well_sensors(well_id):
+
+def get_well_sensors(well_id):
     q = """SELECT sensors.id, pressure_type, archived
            FROM monitoring.wells
            JOIN monitoring.sensors ON sensors.well_id = wells.id
@@ -436,23 +441,203 @@ def sensor_time_bounds(sensor_id):
     if start:
         return start[0]['time'], end[0]['time']
 
+def add_sensor_time_bounds(sensor):
+            start, end = sensor_time_bounds(sensor['id'])
+            sensor['start'] = start
+            sensor['end'] = end
+
+
+def date_overlap(a_start, a_end, b_start, b_end):
+            latest_start = max(a_start, b_start)
+            earliest_end = min(a_end, b_end)
+            delta = (earliest_end - latest_start).total_seconds()
+            overlap = max(0, delta)
+            return overlap
+
+
+def within_interval(d, start, end):
+            return start < d < end
+
 
 class HistoricalModelRunner2():
-    def __init__(self, well_id, start_time, end_time, model_name, model_version=None, window_multipler=5):
-        sensors = well_sensors(well_id)
-        dynamic_sensors = []
-        static_sensors = []
-        for sensor in well_sensors:
-            start, end = sensor_time_bounds(sensor['id'])
-            if sensor['pressure_type'] == 'dynamic':
-                dynamic_sensors.append({'id': sensor['id'],
-                                    'start': start,
-                                    'end': end,})
-            else:
-                static_sensors.append({'id': sensor['id'],
-                                    'start': start,
-                                    'end': end,})
+    def __init__(self, well_id, pressure_type, start_time, end_time, model, frequency, window_size, window_multipler=5, csv_file=None, db_save=False, model_version=None):
+        assert start_time < end_time
 
+        self.well_id = well_id
+        self.start_time = start_time
+        self.end_time = end_time
+        self.buffer_start = start_time
+        self.buffer_end   = start_time + timedelta(seconds = window_size*window_multipler)
+        self.model = model
+        self.frequency = frequency
+        self.window_size = window_size
+        self.window_multipler = window_multipler
+        self.pressure_type = pressure_type
+
+        self.csv_file = csv_file
+        self.db_save = db_save
+        self.is_csv_header_written = False
+        self.model_version = model_version
+
+
+        sensors = [sensor for sensor in get_well_sensors(well_id) if sensor['pressure_type'] == self.pressure_type]
+        [add_sensor_time_bounds(sensor) for sensor in sensors]
+        sensors.sort(key=lambda x: x['start'])
+        self.sensors = sensors
+
+        self.model_data = []
+        for sensor in self.sensors:
+            if self.pressure_type == 'dynamic':
+                self.model_data.append(ModelData(frequency*window_multipler,
+                                                 window_size*window_multipler,
+                                                 dynamic_id=sensor['id'],
+                                                 initialization_time=start_time,
+                                                 live_data=False))
+            if self.pressure_type == 'static':
+                self.model_data.append(ModelData(frequency*window_multipler,
+                                                 window_size*window_multipler,
+                                                 static_id=sensor['id'],
+                                                 initialization_time=start_time,
+                                                 live_data=False))
+
+        print(self.sensors)
+
+
+    def get_buffer_interval(self):
+        return self.model_data[0].start, self.model_data[0].end
+
+
+    def calculate_result_timestamp(self, buffer_start, result_idx, model_frequency):
+        return buffer_start + timedelta(seconds = (result_idx * model_frequency))
+
+    """
+    def add_results_timestamps(self, results):
+        buffer_start, buffer_end = self.get_buffer_interval()
+        for i, result in enumerate(results):
+            result['time'] = self.calculate_result_timestamp(buffer_start, i, self.frequency)
+        return results
+    """
+
+    def save_results(self,results):
+        if self.csv_file:
+            with open(self.csv_file, 'a+') as csvfile:
+                fields = ['time', 'well_id', 'event', 'value', 'model_version']
+                writer = csv.DictWriter(csvfile, fieldnames=fields)
+
+                if not self.is_csv_header_written:
+                    writer.writeheader()
+                    self.is_csv_header_written = True
+
+                for res in results:
+                    writer.writerow(res)
+        if self.db_save:
+            q = """INSERT INTO monitoring.timeseries_events
+               (time, well_id, event, value, model_version)
+               VALUES %s"""
+
+            args = []
+            for res in results:
+                arg = tuple([res[k] for k in ('time', 'well_id', 'event', 'value', 'model_version')])
+                args.append(arg)
+
+            db_query(q, args, insert_multiple=True)
+
+        else:
+            return results
+
+
+    def run_model(self):
+        _, buffer_end = self.get_buffer_interval()
+        while buffer_end < self.end_time:
+            results = self.update_data_and_infer()
+            if results:
+                self.save_results(results)
+            _, buffer_end = self.get_buffer_interval()
+
+
+    def update_data_and_infer(self):
+        buffer_start, buffer_end = self.get_buffer_interval()
+        results = []
+        for sensor, model_data in zip(self.sensors, self.model_data):
+            sensor_start, sensor_end = [sensor[k] for k in ('start', 'end')]
+
+            if date_overlap(sensor_start, sensor_end, self.buffer_start, self.buffer_end) > 0:
+                num_new_files = model_data.update_data()
+
+                if num_new_files:
+                    dynamic_data = model_data.dynamic_data()
+                    static_data =  model_data.static_data()
+
+                    partitioned_dynamic = np.array(dynamic_data).reshape((self.window_multipler, -1))
+                    partitioned_static = partition(static_data, self.window_multipler)
+
+                    if self.pressure_type == 'static':
+                        for static in partitioned_static:
+                            res = self.model.infer([], static)
+                            results.append(res)
+
+                    if self.pressure_type == 'dynamic':
+                        for dynamic in partitioned_dynamic:
+                            res = self.model.infer(dynamic,[])
+                            results.append(res)
+
+            else:
+                #model_data.update_data() calls increment_interval() already but if we dont call it
+                #we need to increment manually
+                model_data.increment_interval_historical()
+
+
+        for idx, result in enumerate(results):
+            result['time'] = self.calculate_result_timestamp(buffer_start, idx, self.frequency)
+            result['well_id'] = self.well_id
+            result['model_version'] = self.model_version
+
+        return results
+
+
+def test_window():
+    from frac_score import FracScore
+
+    window_multipler = 10
+    dev_id = "56ef12c9-8eac-432a-8016-c56911bd38aa"
+    dev_start = datetime(2020,7,15,21,21,00, tzinfo=pytz.utc)
+    dev_end   = datetime(2020,7,15,21,30,10, tzinfo=pytz.utc)
+
+
+    #live_start = datetime(2020, 8, 10).astimezone(pytz.utc),
+    #live_end   = datetime(2020, 8, 10,1,0).astimezone(pytz.utc)
+    #live_id = "04b0ee4f-42a6-47e1-9eb6-7b144255dc81"
+
+
+    h = HistoricalModelRunner2(dev_id,
+                               "dynamic",
+                               dev_start,
+                               dev_end,
+                               FracScore(1),
+                               1,
+                               1,
+                               window_multipler=window_multipler,
+                               csv_file='test.csv',
+                               db_save=True
+    )
+
+    iterations = 5
+    #num_inferences = iterations * window_multipler
+    num_inferences = (dev_end - dev_start).total_seconds()
+
+    t0 = time.time()
+    h.run_model()
+    """
+    for i in range(iterations):
+        res = h.update_data_and_infer()
+        print(res)
+        #print([r['time'] for r in h.add_results_timestamps(res)])
+    """
+    t1 = time.time()
+
+    print(num_inferences, "total inferences")
+    print(t1 -t0, "seconds")
+    print(num_inferences/ (t1 - t0), "inferences per second")
 
 
 
