@@ -259,10 +259,9 @@ def s3_path_to_datetime(path):
     return t_utc
 
 
-def interval_to_flat_array(sensor_id, start, end, target_sample_rate=40000, multiprocessing=True, return_num_files=False):
+def interval_to_flat_array(sensor_id, start, end, target_sample_rate=40000, multiprocessing=True, return_secs_downloaded=False):
     """Returns all dynamic data for a sensor_id, start, and end time in a ring buffer
      Resamples data to target_sample_rate"""
-
     assert end > start
     file_start = start.astimezone(pytz.utc).replace(microsecond=0)
 
@@ -296,6 +295,7 @@ def interval_to_flat_array(sensor_id, start, end, target_sample_rate=40000, mult
 
 
     if files_within_interval:
+
         #Need to handle when requested start,end dont align with uploaded file times
         last_file_time = s3_path_to_datetime(files_within_interval[-1]).replace(microsecond=0)
         downloaded_data_end_time = last_file_time + timedelta(seconds=1)
@@ -321,15 +321,13 @@ def interval_to_flat_array(sensor_id, start, end, target_sample_rate=40000, mult
 
             buffer.append(data_to_append)
 
-        if return_num_files:
-            return buffer, len(arrays)
+        if return_secs_downloaded:
+            return buffer, int(len(buffer)/target_sample_rate)
         else:
             return buffer
+
     else:
-        return np.array([]), 0
-
-
-def tst():
-    return interval_to_flat_array('59445b80-f8df-4eba-a484-e1b66d797980',
-                                  datetime(2020,7,15,21,20,50, tzinfo=pytz.utc),
-                                  datetime(2020,7,15,21,44,10, tzinfo=pytz.utc))
+        if return_secs_downloaded:
+            return np.array([]), 0
+        else:
+            return buffer

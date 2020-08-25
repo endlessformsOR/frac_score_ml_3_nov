@@ -21,6 +21,8 @@ import uuid
 import s3_models
 import psutil
 import csv
+import argparse
+import dateutil
 
 from dynamic_utils import DynamicRingBuffer, parse_time_string_with_colon_offset, interval_to_buckets, timebucket_files, s3_path_to_datetime, get_npz, interval_to_flat_array
 
@@ -95,8 +97,7 @@ class ModelData():
 
         self.start = self.end - timedelta(seconds=self.window_size)
 
-
-    def increment_interval_historical(self, num_new_files=0):
+    def increment_interval_historical(self, secs_downloaded=0):
         assert self.start and self.end
         delta = timedelta(seconds=self.frequency)
 
@@ -104,7 +105,7 @@ class ModelData():
         self.end += delta
 
         #in case of gaps in data drop data from buffer which is no longer in window
-        seconds_to_drop = self.frequency - num_new_files
+        seconds_to_drop = self.frequency - secs_downloaded
 
         if self.static_id:
             for i in range(seconds_to_drop):
@@ -117,13 +118,13 @@ class ModelData():
                     self.dynamic_buffer.popleftn(self.target_sample_rate)
 
 
-    def increment_interval_live(self, num_new_files=0):
+    def increment_interval_live(self, secs_downloaded=0):
         "Updates window start and end."
         assert self.start and self.end
 
-        if num_new_files:
+        if secs_downloaded:
 
-            delta = timedelta(seconds=num_new_files)
+            delta = timedelta(seconds=secs_downloaded)
 
             #buffer full
             if self.current_window_size >= self.window_size:
@@ -168,7 +169,8 @@ class ModelData():
             end = self.end
 
         #cold start: not enough data populated yet
-        elif self.current_window_size < self.window_size:
+        #only use in live mode
+        elif self.live_data and self.current_window_size < self.window_size:
             size_difference = self.window_size - self.current_window_size
             start = self.end - timedelta(seconds=size_difference)
             end = self.end
@@ -194,7 +196,7 @@ class ModelData():
                                                      end,
                                                      target_sample_rate=self.target_sample_rate,
                                                      multiprocessing=(not self.live_data),
-                                                     return_num_files = True
+                                                     return_secs_downloaded = True
         )
 
         self.dynamic_buffer.append(new_data)
@@ -218,33 +220,33 @@ class ModelData():
         return len(results)
 
 
-    #TODO: num_new_files is bad assumption. Files are sometimes skipped
+    #TODO: secs_downloaded is bad assumption. Files are sometimes skipped
     def update_data(self):
-        num_new_files = 0
+        secs_downloaded = 0
 
         if self.dynamic_id:
-            num_new_files = self.update_dynamic_data()
+            secs_downloaded = self.update_dynamic_data()
 
         #prioritize new dynamic files
         if self.static_id:
             num_new_static_files =  self.update_static_data()
-            if not num_new_files:
-                num_new_files = num_new_static_files
+            if not secs_downloaded:
+                secs_downloaded = num_new_static_files
 
 
         if self.current_window_size < self.window_size:
-            self.current_window_size += num_new_files
+            self.current_window_size += secs_downloaded
 
         #start,end already set if not initialized
         if self.initialized:
             if self.live_data:
-                self.increment_interval_live(num_new_files)
+                self.increment_interval_live(secs_downloaded)
             else:
-                self.increment_interval_historical(num_new_files)
+                self.increment_interval_historical(secs_downloaded)
 
         self.initialized = True
 
-        return num_new_files
+        return secs_downloaded
 
 
     def dynamic_data(self):
@@ -350,8 +352,8 @@ class ModelRunner():
 
 
     def update_data_and_infer(self):
-        num_new_files = self.model_data.update_data()
-        if num_new_files:
+        secs_downloaded = self.model_data.update_data()
+        if secs_downloaded:
             results = self.infer()
             return results
 
@@ -387,8 +389,8 @@ class ModelRunner():
 
 
     def detect_and_insert_events(self):
-        num_new_files = self.model_data.update_data()
-        if num_new_files:
+        secs_downloaded = self.model_data.update_data()
+        if secs_downloaded:
             result = self.infer()
             if self.timeseries and result:
                 self.insert_timeseries_event(result)
@@ -460,7 +462,7 @@ def within_interval(d, start, end):
 
 
 class HistoricalModelRunner2():
-    def __init__(self, well_id, pressure_type, start_time, end_time, model, frequency, window_size, window_multipler=5, csv_file=None, db_save=False, model_version=None):
+    def __init__(self, well_id, pressure_type, start_time, end_time, model, frequency, window_size, window_multipler=5, csv_file=None, db_save=False, model_version=None, target_sample_rate=40000):
         assert start_time < end_time
 
         self.well_id = well_id
@@ -478,12 +480,14 @@ class HistoricalModelRunner2():
         self.db_save = db_save
         self.is_csv_header_written = False
         self.model_version = model_version
+        self.target_sample_rate=40000
 
 
         sensors = [sensor for sensor in get_well_sensors(well_id) if sensor['pressure_type'] == self.pressure_type]
         [add_sensor_time_bounds(sensor) for sensor in sensors]
         sensors.sort(key=lambda x: x['start'])
         self.sensors = sensors
+
 
         self.model_data = []
         for sensor in self.sensors:
@@ -492,13 +496,15 @@ class HistoricalModelRunner2():
                                                  window_size*window_multipler,
                                                  dynamic_id=sensor['id'],
                                                  initialization_time=start_time,
-                                                 live_data=False))
+                                                 live_data=False,
+                                                 target_sample_rate=target_sample_rate))
             if self.pressure_type == 'static':
                 self.model_data.append(ModelData(frequency*window_multipler,
                                                  window_size*window_multipler,
                                                  static_id=sensor['id'],
                                                  initialization_time=start_time,
-                                                 live_data=False))
+                                                 live_data=False,
+                                                 target_sample_rate=target_sample_rate))
 
         print(self.sensors)
 
@@ -547,7 +553,7 @@ class HistoricalModelRunner2():
 
 
     def run_model(self):
-        _, buffer_end = self.get_buffer_interval()
+        buffer_start, buffer_end = self.get_buffer_interval()
         while buffer_end < self.end_time:
             results = self.update_data_and_infer()
             if results:
@@ -562,13 +568,13 @@ class HistoricalModelRunner2():
             sensor_start, sensor_end = [sensor[k] for k in ('start', 'end')]
 
             if date_overlap(sensor_start, sensor_end, self.buffer_start, self.buffer_end) > 0:
-                num_new_files = model_data.update_data()
+                secs_downloaded = model_data.update_data()
 
-                if num_new_files:
+                if secs_downloaded:
                     dynamic_data = model_data.dynamic_data()
                     static_data =  model_data.static_data()
 
-                    partitioned_dynamic = np.array(dynamic_data).reshape((self.window_multipler, -1))
+                    partitioned_dynamic = partition(dynamic_data, self.target_sample_rate)
                     partitioned_static = partition(static_data, self.window_multipler)
 
                     if self.pressure_type == 'static':
@@ -580,6 +586,7 @@ class HistoricalModelRunner2():
                         for dynamic in partitioned_dynamic:
                             res = self.model.infer(dynamic,[])
                             results.append(res)
+
 
             else:
                 #model_data.update_data() calls increment_interval() already but if we dont call it
@@ -598,7 +605,7 @@ class HistoricalModelRunner2():
 def test_window():
     from frac_score import FracScore
 
-    window_multipler = 10
+    window_multipler = 120
     dev_id = "56ef12c9-8eac-432a-8016-c56911bd38aa"
     dev_start = datetime(2020,7,15,21,21,00, tzinfo=pytz.utc)
     dev_end   = datetime(2020,7,15,21,30,10, tzinfo=pytz.utc)
@@ -618,7 +625,7 @@ def test_window():
                                1,
                                window_multipler=window_multipler,
                                csv_file='test.csv',
-                               db_save=True
+                               db_save=False
     )
 
     iterations = 5
@@ -927,5 +934,106 @@ def scheduler_queue():
                 print(e)
                 break
 
+
 if __name__ == "__main__":
-    scheduler_queue()
+    parser = argparse.ArgumentParser(description='Runs Stratalink models either in historical mode on one well or as a worker on live wells')
+
+    parser.add_argument('--historical',
+                        help='True/False. Run model in historical mode. Requires well_id, start,end, and model info',
+                        required=False,
+                        default=False,
+                        type=bool)
+
+    parser.add_argument('--well_id',
+                        help='UUID of well to run historical models on',
+                        required=False,)
+
+    parser.add_argument('--pressure_type',
+                        help="run model on 'dynamic' or 'static' sensor",
+                        required=False,
+                        default='dynamic')
+
+    parser.add_argument('--start',
+                        help='Historical start date. Iso format',
+                        required=False,)
+
+    parser.add_argument('--end',
+                        help='Historical end date. Iso format',
+                        required=False,)
+
+    parser.add_argument('--model_type',
+                        help='py for raw python or tf for tensorflow models',
+                        required=False,
+                        default='py')
+
+    parser.add_argument('--model_name',
+                        help='Name of model to run',
+                        required=False,)
+
+    parser.add_argument('--model_version',
+                        help='version of model to run. Leave blank for latest',
+                        required=False,)
+
+    parser.add_argument('--batch_multiplier',
+                        help="""How many multiples of the model window size to download at once.
+                                A multiplier that results in a download window of 240 seconds seems optimal""",
+                        required=False,
+                        type=int,
+                        default=120,)
+
+    parser.add_argument('--csv',
+                        help="Optional CSV file to save model output to",
+                        required=False)
+
+    parser.add_argument('--save_db',
+                        help="True/False. Save model output to database",
+                        required=False,
+                        default=False,
+                        type=bool,)
+
+    args = vars(parser.parse_args())
+
+    if args['historical']:
+        start = dateutil.parser.isoparse(args['start'])
+        end = dateutil.parser.isoparse(args['end'])
+        well_id = args['well_id']
+        pressure_type = args['pressure_type']
+        model_type = args['model_type']
+        model_name = args['model_name']
+        model_version = args['model_version']
+        csv_file = args['csv']
+        save_db = args['save_db']
+        window_multipler = args['batch_multiplier']
+
+
+        if model_type == 'py':
+            model_class, metadata  = s3_models.download_py_model(model_name, model_version)
+            model_instance = model_class(metadata['window_size'])
+            model_version = metadata['version']
+            frequency = metadata['frequency']
+            window_size = metadata['window_size']
+
+            runner = HistoricalModelRunner2(well_id,
+                                        pressure_type,
+                                        start,
+                                        end,
+                                        model_instance,
+                                        frequency,
+                                        window_size,
+                                        window_multipler,
+                                        csv_file=csv_file,
+                                        db_save=save_db,
+                                        model_version=model_version)
+
+            runner.run_model()
+
+        if model_type =='tf':
+            model, metadata = s3_models.download_tf_model(model_name, model_version)
+            #TODO refactor s3_models.TF_Model to be compatable with HistoricalModelRunner
+
+
+
+
+
+    else:
+        scheduler_queue()

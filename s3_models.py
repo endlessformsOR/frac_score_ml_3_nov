@@ -84,6 +84,7 @@ def download_py_model(model_name, version=None):
     model_key = prefix + f"{model_name}-{version}"
 
     metadata = download_metadata('py', model_name, version)
+    metadata['version'] = version
 
     #download model
     with io.BytesIO() as f:
