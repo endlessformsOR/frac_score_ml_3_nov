@@ -7,6 +7,7 @@
 from dynamic_utils import interval_to_flat_array_resample, parse_time_string_with_colon_offset
 from usefulmethods import dynamic2dashboard, fetch_sensor_db_data, logFFT, logFFT2Dmatrix, Welch_matrix_methods, quickFFTobjs, parse_time_string_with_colon_offset, mkDataTimeFromStr,dtObj2str 
 from impulse_utils import makeData, fracScoreDetector, butter_bandpass, butter_bandpass_filter, butter_lowpass_filter, butter_lowpass, mkFFTstuff, makePerfGunDataset, makeActiveFracsDataset, mkDF_FractureData, mkDF_PerfGunFiring
+from fracScore_utils import makeData, fracScoreDetector_v2, fetchSensorIDsFromAPIs, mkUTCtime, mkRndmWindows, make_frac_score_data_set, butter_bandpass_filter
 import os, sys, datetime, subprocess, time, db, statistics, ipywidgets
 import numpy as np
 import pandas as pd
