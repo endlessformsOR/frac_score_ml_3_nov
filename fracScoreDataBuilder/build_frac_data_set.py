@@ -70,4 +70,4 @@ timeAfterPop_secs = 3
 
 # now make data
 
-makeFracScoreDataSet(df_wellIDs, df_effReport, num_windows_per_stage, counting_window_secs, STD_M, distanceVal, timeBeforePop_secs, timeAfterPop_secs)
+make_frac_score_data_set(df_wellIDs, df_effReport, num_windows_per_stage, counting_window_secs, STD_M, distanceVal, timeBeforePop_secs, timeAfterPop_secs)
