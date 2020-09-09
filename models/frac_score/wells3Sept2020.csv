@@ -1,0 +1,191 @@
+well_name,well_number,static_id,dynamic_id,pad_name,api,start,end
+ BRISCOE CATARINA SOUTH,7H,b022614e-31d2-4803-a832-323896a2105f,892127d9-52b6-460b-ae65-e61f24d0533c, BRISCOE CATARINA SOUTH 7H Pad,42127339520000,13:37.2,05:21.3
+ BRISCOE CATARINA SOUTH,8H,76f121e2-d834-4af5-a56b-e02f62616e20,5724f236-39e8-41a7-b2c1-71cf7232c71b, BRISCOE CATARINA SOUTH 7H Pad,42127339510000,13:37.2,00:07.8
+ BRISCOE CATARINA SOUTH,9H,056e4815-e540-4bd6-8171-fb5e81193c76,8ff48109-e33a-4205-8019-36c2f8212101, BRISCOE CATARINA SOUTH 7H Pad,42127339530000,13:37.2,00:07.8
+ BRISCOE CATARINA SOUTH,9H,056e4815-e540-4bd6-8171-fb5e81193c76,72a9d5d7-ef71-4a30-86a0-9f0e562a8765, BRISCOE CATARINA SOUTH 7H Pad,42127339530000,13:37.2,00:07.8
+BRISCOE CATARINA NORTH,34HV,a11f6fc1-479b-48f6-b2e6-f72910c1aa72,c269d5ad-1863-4a3c-9e58-ee926ae63b68,BRISCOE CATARINA NORTH 34HV Pad,42127382470000,18:11.8,40:40.0
+BRISCOE CATARINA NORTH,34HW,a42f4570-cdb1-49d9-9cfe-3563b2fd2841,117f76b1-3b0c-4f13-815f-a193fa1deaaa,BRISCOE CATARINA NORTH 34HV Pad,42127382480000,52:47.6,40:40.0
+BRISCOE CATARINA NORTH,34HW,a42f4570-cdb1-49d9-9cfe-3563b2fd2841,c9e3d0db-80b3-48f6-87d1-d96d58ae1f03,BRISCOE CATARINA NORTH 34HV Pad,42127382480000,52:47.6,40:40.0
+BRISCOE CATARINA NORTH,34HX,d4a89ae9-da95-4d8f-8ba8-2b0370c74c94,0495ae6c-945d-4428-9c56-91de17eed8e0,BRISCOE CATARINA NORTH 34HV Pad,42127382490000,19:48.6,25:19.8
+BRISCOE CATARINA NORTH,34HY,e0f448ce-696d-4575-9679-245cd4c0ead2,5bf47af6-3e45-4a75-82db-54f89984b05f,BRISCOE CATARINA NORTH 34HV Pad,42127382500000,19:48.6,52:46.6
+BRISCOE CATARINA NORTH,34HZ,d2855f3c-5763-4f3d-87ee-134f287820cb,c3bd4460-d161-452e-a9a2-2c9c6ae2a18d,BRISCOE CATARINA NORTH 34HV Pad,42127382510000,19:48.6,32:20.7
+BRISCOE CATARINA WEST,01HX,ea2e7111-1f74-4efd-8f40-8a09ebd08c15,fb3793a3-7f5b-4273-8ceb-39fb3e2bb0af,BRISCOE CATARINA WEST 01HX Pad,42127376740000,55:07.4,56:28.9
+BRISCOE CATARINA WEST,01HY,f346f1c6-fa66-4a03-8ef6-c1d616fce6b9,de880a23-18c5-4c91-96ee-de40ac19e740,BRISCOE CATARINA WEST 01HX Pad,42127376750000,55:07.4,56:28.9
+BRISCOE CATARINA WEST,01HZ,a35dbdf1-142e-445c-846b-d16c7533f1d4,ad1e424f-df87-4c0f-b97a-46d232423d56,BRISCOE CATARINA WEST 01HX Pad,42127376760000,55:07.4,56:28.9
+BRISCOE CATARINA WEST,33HU,69eb9c9a-4611-41e4-a306-e01d60017be9,c62e0d73-2b63-4fba-8a6a-fd96466b545d,BRISCOE CATARINA WEST 33HU Pad,42127379820000,29:13.2,55:41.3
+BRISCOE CATARINA WEST,33HV,72b309a0-7c6b-4670-b1e8-defd454e93ec,0a4cbbc7-4445-432c-b07a-01df09ae538b,BRISCOE CATARINA WEST 33HU Pad,42127379830000,29:13.2,17:49.2
+BRISCOE CATARINA WEST,33HW,2db7044a-b4cc-4173-843a-3a82bb658df4,4b65d71e-9512-4101-a32d-c6a06a1bfd71,BRISCOE CATARINA WEST 33HU Pad,42127379840000,29:13.2,17:49.2
+BRISCOE COCHINA EAST RANCH,143H,4164f51c-9a29-4972-aea1-4837eccfdce9,5dcdb6b8-701d-4369-b5a4-4e3b70827e5f,BRISCOE COCHINA EAST RANCH 143H Pad,42283348690000,58:54.5,14:58.0
+BRISCOE COCHINA EAST RANCH,144H,eea30a4b-2e3c-483e-b02d-c4974f05092c,c24b0596-160c-4055-8da1-877e61902863,BRISCOE COCHINA EAST RANCH 143H Pad,42283348700000,58:54.5,14:58.0
+BRISCOE COCHINA EAST RANCH,144H,eea30a4b-2e3c-483e-b02d-c4974f05092c,23df1558-d475-4f78-9c43-9702bf2daefd,BRISCOE COCHINA EAST RANCH 143H Pad,42283348700000,58:54.5,14:58.0
+BRISCOE COCHINA EAST RANCH,145HR,e5ac7795-a213-4488-a67b-36ed40c70d32,a61b91c7-de10-4f45-9cdc-fb744eece46e,BRISCOE COCHINA EAST RANCH 143H Pad,42283351490000,58:54.5,14:58.0
+Briscoe Carla Ranch Unit B,02HA,b8c4bc93-9c15-4fad-a93b-c2c3b14a58a3,7328b1e3-e889-4b49-8c89-1594bedb5efc,Briscoe Carla Ranch 02,42127375460000,47:01.0,47:27.0
+Briscoe Carla Ranch Unit B,02HB,e15963b8-a837-4e1f-9597-4bab08dfbb03,0f16738a-0324-45fc-b84e-9f517caf1e97,Briscoe Carla Ranch 02,42127375470000,47:01.0,47:27.0
+Briscoe Carla Ranch Unit B,02HB,e15963b8-a837-4e1f-9597-4bab08dfbb03,6992f188-9edc-4aab-a939-e0357089f586,Briscoe Carla Ranch 02,42127375470000,47:01.0,47:27.0
+Briscoe Carla Ranch Unit B,02HC,552aa27d-3af0-4586-a6d6-b6bc26074594,f4216dd3-503c-48fa-a9c4-49602292f5fc,Briscoe Carla Ranch 02,42127375480000,47:01.0,47:27.0
+Briscoe Carla Ranch Unit B,18HX,311325a6-4f06-48c4-b371-fd5d6e7e9e82,9ce50a59-8398-4223-bd8c-7d8981fdf2f3,Briscoe Carla Ranch 18,42127382910000,05:43.0,06:01.0
+Briscoe Carla Ranch Unit B,18HY,8d9ce0cb-4a38-44ee-a6d0-99625f6d3a0b,da9cbf28-3776-4420-95ad-77f98aff74d1,Briscoe Carla Ranch 18,42127382920000,05:43.0,06:01.0
+Briscoe Carla Ranch Unit B,18HZ,e8b75fde-c9c3-4f21-a2a9-dcccb69cac2f,914edc50-70af-4f7c-9db9-639352be1f19,Briscoe Carla Ranch 18,42127382930000,05:43.0,06:01.0
+Briscoe Carla Ranch Unit B,4H,e5e19cfc-e33b-4dbf-9ecf-9b82f20974f8,04b366ce-53d8-49ae-a52d-1da70f47c79c,Briscoe Carla Ranch Unit B H,42127364680000,29:52.0,39:53.0
+Briscoe Carla Ranch Unit B,5H,3662bd53-1969-49f2-8cb5-023cb9158945,92001a48-2a0f-41fd-8226-77530a85256f,Briscoe Carla Ranch Unit B H,42127364670000,29:52.0,39:53.0
+Briscoe Carla Ranch Unit B,6H,a00ab67a-b364-4b5a-abdb-cd194c1d3339,474d5d97-5c27-4765-98b0-4b4be93b5b4a,Briscoe Carla Ranch Unit B H,42127364690000,29:52.0,39:53.0
+Briscoe Carla Ranch Unit B,7H,f87c4567-1286-4885-9faa-a537b31ea751,e10d7d15-3a36-461d-aa65-a89fac1263c5,Briscoe Carla Ranch Unit B H,42127364700000,35:35.0,39:53.0
+Briscoe Catarina South,29HA,d71ffd44-bd00-4045-994e-91ed11cba913,5780da36-c445-4638-8396-777622c625d0,Briscoe Catarina South 29HA Pad,42127382760000,31:26.0,20:35.0
+Briscoe Catarina South,29HB,6ff6841f-b792-4630-8205-c8f5e86184f0,a4b4621e-7c51-4594-82ed-b4525190b0b2,Briscoe Catarina South 29HA Pad,42127382770000,31:26.0,20:35.0
+Briscoe Catarina South,29HC,bbc47a18-3eb6-4257-a739-d26183b88ac1,707f7450-703c-40ea-9373-0658424a71ff,Briscoe Catarina South 29HA Pad,42127382780000,31:26.0,20:35.0
+Briscoe Catarina South,63H,46848fd2-6c1d-4bbf-beea-af8f4e55da12,e43db581-feaa-4188-994a-9972551c35f1,Briscoe Catarina South 61H Pad,42127364410000,56:35.0,52:29.0
+Briscoe Catarina South,64H,afe76b6e-2dca-4784-bfe7-c8bf1abd757f,329ffe71-ee58-445b-a41b-a621582f7d63,Briscoe Catarina South 61H Pad,42127364420000,49:34.0,52:29.0
+Briscoe Catarina South,65H,16a63d5a-71c4-4670-8af5-18347423d318,59721f03-00ee-475f-a8a6-76539a626b76,Briscoe Catarina South 61H Pad,42127364430000,49:34.0,52:29.0
+Briscoe Catarina South,67H,564a692f-63e5-4955-ab62-3381fee75b70,635949a1-1443-4e4c-b836-7bb6ccfc72e1,Briscoe Catarina South 67H Pad,42127364170000,56:08.0,38:21.0
+Briscoe Catarina South,69H,9cf67ba0-cf00-484d-8a78-7f0b256efbf3,25a22327-918f-4831-8d55-40be6709ff4f,Briscoe Catarina South 67H Pad,42127364190000,56:08.0,38:21.0
+Briscoe Catarina South,71H,3a33c31e-40e2-4f0a-bd24-6e18c8d74067,8771f84c-7bbd-4945-8be1-af3836a7b922,Briscoe Catarina South 67H Pad,42127364210000,49:41.0,38:21.0
+Briscoe Chupadera Ranch,14HA,141c96df-bde4-486e-84e4-a8bccbf80ee2,405b0c18-beac-495c-abfb-2cae858eb2cd,Briscoe Chupadera Ranch 14 Pad,42479442680000,20:11.0,03:08.0
+Briscoe Chupadera Ranch,14HB,bdf9edd5-e14a-41a0-889e-ea11ff9a0acb,571b3d1f-9456-494c-8236-ca0f036b343a,Briscoe Chupadera Ranch 14 Pad,42479442690000,20:11.0,03:08.0
+Briscoe Chupadera Ranch,14HC,87dcfcec-4b66-4c5e-b1e2-c2859f3bba7c,52653918-91d3-498b-896f-aadd331ca90d,Briscoe Chupadera Ranch 14 Pad,42479442700000,20:11.0,03:08.0
+Briscoe Chupadera Ranch,1H,a8c4cf6b-d410-47cd-9a7c-0566e1a6fa43,0d1ad981-9c4b-41bb-891f-7884457c2ea4,Briscoe Chupadera Ranch 1 Pad,42479397860000,03:36.0,49:40.0
+Briscoe Chupadera Ranch,8H,e49f55b5-21fa-42c3-9f0e-b1b87d081e90,ef364462-4f20-4d5b-b20f-d8ebdbbf7953,BRISCOE CHUPADERA RANCH 8 Pad,42479412550000,12:39.0,49:33.0
+Briscoe Chupadera Ranch,9H,bacab334-887f-4b85-af3f-288a9ceeaa1e,9521c617-8d8a-404d-a10e-7e804e3a9838,BRISCOE CHUPADERA RANCH 8 Pad,42479412560000,12:39.0,49:33.0
+Briscoe Chupadera Ranch A,03HA,72245c45-954d-4c3f-bec8-4174c9eba7aa,b7c5d870-b85d-48cd-b420-42f5a3e49357,Briscoe Chupadera Ranch A 03HA,42479437610000,19:31.6,57:50.0
+Briscoe Chupadera Ranch A,03HB,833022e8-5497-4552-ac8a-8a1432b03df1,aedbea82-ebf2-48f1-8ce0-ce9ae80180cb,Briscoe Chupadera Ranch A 03HA,42479437620000,19:31.6,57:50.0
+Briscoe Chupadera Ranch A,03HC,879d85dd-d557-4dda-9c05-23d45077ba1a,f297fc92-655c-42d0-b41b-12da3c795cf6,Briscoe Chupadera Ranch A 03HA,42479437630000,19:31.6,57:50.0
+Briscoe Chupadera Ranch A,03HC,879d85dd-d557-4dda-9c05-23d45077ba1a,2810e84c-e121-4aee-91ed-ef1366594120,Briscoe Chupadera Ranch A 03HA,42479437630000,19:31.6,57:50.0
+Briscoe Chupadera Ranch A,03HD,2de4278b-edfa-4460-8bba-b87a8c315911,f49aed67-4cf1-43fa-b812-43c86bd4b0d4,Briscoe Chupadera Ranch A 03HA,42479437640000,19:31.6,57:50.0
+Briscoe Chupadera Ranch A,04HA,7640ae5c-6f31-4fd0-83d8-b85936670a9c,44a6c356-8a7b-4565-8a94-7f8eab2a3028,Briscoe Chupadera Ranch A 04HA,42479442760000,56:09.0,04:07.0
+Briscoe Chupadera Ranch A,04HB,012d653d-ead8-429a-990b-624bec93c781,12d08a30-e099-4c98-b3de-cb5d11b9cbf8,Briscoe Chupadera Ranch A 04HA,42479442770000,56:09.0,04:07.0
+Briscoe Chupadera Ranch A,04HC,bf173b11-8c04-4aaf-bc5e-e95a57d8290a,406573f6-1b33-4ad7-85eb-a4114b6ad0d5,Briscoe Chupadera Ranch A 04HA,42479442780000,56:09.0,04:07.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,207e7357-40d5-46eb-8cb8-235f459adf2f,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,207e7357-40d5-46eb-8cb8-235f459adf2f,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,e5516576-3e27-4368-9ee6-6789969b891d,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,e5516576-3e27-4368-9ee6-6789969b891d,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,19f3d5f2-3e46-4130-9416-d1ab2e1b0f29,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,19f3d5f2-3e46-4130-9416-d1ab2e1b0f29,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,bcdd8eca-1d85-48da-a79d-bc7b0f686ba3,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,bcdd8eca-1d85-48da-a79d-bc7b0f686ba3,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,ad43f2bf-7bc4-4981-a4ee-bfef4b1914fc,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,ad43f2bf-7bc4-4981-a4ee-bfef4b1914fc,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,f413b227-5b36-4a54-b576-b77c901d7222,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,f413b227-5b36-4a54-b576-b77c901d7222,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,4b9d7a69-ee59-467e-8a53-004f91a744e2,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,4b9d7a69-ee59-467e-8a53-004f91a744e2,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,34e261d8-f1fd-4d2e-8197-0652af434b98,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,34e261d8-f1fd-4d2e-8197-0652af434b98,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,e91c51a3-e42b-4fdf-bfca-f683ab1086b9,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,e91c51a3-e42b-4fdf-bfca-f683ab1086b9,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,8e32528e-897e-4e23-9a62-b30a6e7e7fb9,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,8e32528e-897e-4e23-9a62-b30a6e7e7fb9,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,7570a0d1-1760-4e66-8388-ca043c279889,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,7570a0d1-1760-4e66-8388-ca043c279889,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,d1431c23-fe1a-4cc5-9b7f-c82bd5c7a412,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,d1431c23-fe1a-4cc5-9b7f-c82bd5c7a412,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,cf262140-1b3d-4f44-80a4-ed2631f34bc8,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,cf262140-1b3d-4f44-80a4-ed2631f34bc8,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,e286646b-d58e-4dd0-b41c-ea5955256937,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,e286646b-d58e-4dd0-b41c-ea5955256937,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,a29fea40-0a81-421c-9456-a188e3e27a67,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,a29fea40-0a81-421c-9456-a188e3e27a67,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,141c9118-31f8-43ec-897a-3db6203909e9,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,141c9118-31f8-43ec-897a-3db6203909e9,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,ffaaa195-88e3-4938-b099-eea5580de2db,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,ffaaa195-88e3-4938-b099-eea5580de2db,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,09a85caa-d523-4ea7-9260-eaf51a47885f,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,09a85caa-d523-4ea7-9260-eaf51a47885f,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,7a293920-7fa0-48b9-8c9b-8de9c92df610,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,7a293920-7fa0-48b9-8c9b-8de9c92df610,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,7f6c0735-515e-4cf1-a1cd-caa9ff731df0,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,7f6c0735-515e-4cf1-a1cd-caa9ff731df0,sanchez test pad,1,30:21.0,35:33.0
+Clearing Well,1,99a9bfca-09ef-489a-8158-4454f5da7aa3,eadd6c63-cf37-4152-a8ea-4bc0d7673cb4,sanchez test pad,1,33:01.4,57:17.1
+Clearing Well,1,f28f6bf7-616a-4dad-b3c6-871fa5670ee0,eadd6c63-cf37-4152-a8ea-4bc0d7673cb4,sanchez test pad,1,30:21.0,35:33.0
+HIDEAWAY RANCH C,1EF,d4446d15-92f2-4363-8cd1-16d5ae576a8e,c00adf86-e887-4588-8fc0-de10deb2ca16,Hideaway Ranch C,42163339220000,38:56.0,34:57.0
+Hideaway Ranch C,2EF,285f97e6-d767-4f63-b49b-db6e59dd560d,15b6c4e2-5c90-483c-a52e-bcc56ee6cebd,Hideaway Ranch C,42163339230000,38:56.0,34:57.0
+Hideaway Ranch C,4EF,4d6fde1c-b683-48f6-bc36-dd2235154e70,22036341-d390-41de-a48e-53641074927f,Hideaway Ranch C,42163339250000,38:56.0,34:57.0
+Hideaway Ranch C,5EF,15e33947-6c58-413b-a100-c0a68e4a55dd,33bb22cb-ddea-40ce-8041-d4b6485eb553,Hideaway Ranch C,42163339260000,39:18.6,34:57.0
+Hideaway Ranch D,1EF,7f1e2711-286a-4aa1-a127-8cb9a9040228,ebcd9167-4bdf-47f0-bc17-f6d7345ef7a2,Hideaway Ranch D,42163340590000,24:05.3,55:39.0
+Hideaway Ranch D,2EF,5c7d9017-5504-4c49-a9df-523eacce267f,b91a88be-e876-4f2c-a117-aa0e05dd5cc1,Hideaway Ranch D,42163340600000,24:05.3,55:39.0
+Hideaway Ranch North F,1EF,05c29c0d-1152-4486-813d-81bb1003b6b0,815914ed-c6e2-4e1f-8ba9-a4e7f2ee682e,Hideaway Ranch Norte F,42163340990000,44:28.1,24:16.0
+Hideaway Ranch North F,1EF,bc428b7f-7cc9-49e9-abf9-56012df13b0d,815914ed-c6e2-4e1f-8ba9-a4e7f2ee682e,Hideaway Ranch Norte F,42163340990000,52:33.1,23:17.0
+Hideaway Ranch North F,1EF,35fe4388-3a3b-4f8c-81f4-149a1b26f627,815914ed-c6e2-4e1f-8ba9-a4e7f2ee682e,Hideaway Ranch Norte F,42163340990000,01:11.9,52:16.0
+Hideaway Ranch North F,1EF,05c29c0d-1152-4486-813d-81bb1003b6b0,cb846465-379c-4e50-909f-2cf9681d439a,Hideaway Ranch Norte F,42163340990000,44:28.1,24:16.0
+Hideaway Ranch North F,1EF,bc428b7f-7cc9-49e9-abf9-56012df13b0d,cb846465-379c-4e50-909f-2cf9681d439a,Hideaway Ranch Norte F,42163340990000,52:33.1,23:17.0
+Hideaway Ranch North F,1EF,35fe4388-3a3b-4f8c-81f4-149a1b26f627,cb846465-379c-4e50-909f-2cf9681d439a,Hideaway Ranch Norte F,42163340990000,01:11.9,52:16.0
+Hideaway Ranch North F,2EF,fefcc358-3346-486f-84b6-dd2064166484,c293133c-2c20-448b-97e8-d5b9daa01d68,Hideaway Ranch Norte F,42163341000000,44:28.1,24:16.0
+Hideaway Ranch North F,2EF,13098acd-eee3-4f85-ad32-6225f200e1fe,c293133c-2c20-448b-97e8-d5b9daa01d68,Hideaway Ranch Norte F,42163341000000,01:11.9,36:37.0
+Hideaway Ranch North F,2EF,fefcc358-3346-486f-84b6-dd2064166484,2bc0f4f7-324b-43d0-beb9-c0725e498df6,Hideaway Ranch Norte F,42163341000000,44:28.1,24:16.0
+Hideaway Ranch North F,2EF,13098acd-eee3-4f85-ad32-6225f200e1fe,2bc0f4f7-324b-43d0-beb9-c0725e498df6,Hideaway Ranch Norte F,42163341000000,01:11.9,36:37.0
+Hideaway Ranch North F,2EF,fefcc358-3346-486f-84b6-dd2064166484,d2437071-4e89-456e-9101-ba5f71961880,Hideaway Ranch Norte F,42163341000000,44:28.1,24:16.0
+Hideaway Ranch North F,2EF,13098acd-eee3-4f85-ad32-6225f200e1fe,d2437071-4e89-456e-9101-ba5f71961880,Hideaway Ranch Norte F,42163341000000,01:11.9,36:37.0
+Hideaway Ranch North F,2EF,fefcc358-3346-486f-84b6-dd2064166484,626a9242-8867-4c7e-87ce-08dcc00512f0,Hideaway Ranch Norte F,42163341000000,44:28.1,24:16.0
+Hideaway Ranch North F,2EF,13098acd-eee3-4f85-ad32-6225f200e1fe,626a9242-8867-4c7e-87ce-08dcc00512f0,Hideaway Ranch Norte F,42163341000000,01:11.9,36:37.0
+Hideaway Ranch North F,3EF,b754f48b-e4ad-422a-8222-afb01d72902c,d0ce913a-6714-4930-a0c9-54fb61fe8c7a,Hideaway Ranch Norte F,42163341010000,01:11.9,36:37.0
+Hideaway Ranch North F,3EF,370dbf74-c5f3-42bb-9198-c3574f01e055,d0ce913a-6714-4930-a0c9-54fb61fe8c7a,Hideaway Ranch Norte F,42163341010000,05:23.5,41:11.7
+Hideaway Ranch North F,3EF,2a3fd09c-0547-4d9b-9c5f-52ee815c5ffd,d0ce913a-6714-4930-a0c9-54fb61fe8c7a,Hideaway Ranch Norte F,42163341010000,44:28.1,24:16.0
+Hideaway Ranch North F,3EF,b754f48b-e4ad-422a-8222-afb01d72902c,5dca9559-4d67-4805-bbc7-eb0048f0b255,Hideaway Ranch Norte F,42163341010000,01:11.9,36:37.0
+Hideaway Ranch North F,3EF,370dbf74-c5f3-42bb-9198-c3574f01e055,5dca9559-4d67-4805-bbc7-eb0048f0b255,Hideaway Ranch Norte F,42163341010000,05:23.5,41:11.7
+Hideaway Ranch North F,3EF,2a3fd09c-0547-4d9b-9c5f-52ee815c5ffd,5dca9559-4d67-4805-bbc7-eb0048f0b255,Hideaway Ranch Norte F,42163341010000,44:28.1,24:16.0
+Hideaway Ranch North G,1EF,b7e1f364-34da-4654-bbdb-1102f20340c0,7217a992-fa34-4e95-81c3-e15c58072706,Hideaway Ranch North G,42163341020000,23:27.0,36:37.0
+Hideaway Ranch North G,1EF,baf65663-d987-4611-bc4d-213e800b82a5,7217a992-fa34-4e95-81c3-e15c58072706,Hideaway Ranch North G,42163341020000,05:46.5,44:03.0
+Hideaway Ranch North G,1EF,b235cfdd-b35c-4d60-99cb-ef1232e7a260,7217a992-fa34-4e95-81c3-e15c58072706,Hideaway Ranch North G,42163341020000,37:08.7,06:21.0
+Hideaway Ranch North G,1EF,b7e1f364-34da-4654-bbdb-1102f20340c0,f243e890-e629-4900-b975-7228082fc81a,Hideaway Ranch North G,42163341020000,23:27.0,36:37.0
+Hideaway Ranch North G,1EF,baf65663-d987-4611-bc4d-213e800b82a5,f243e890-e629-4900-b975-7228082fc81a,Hideaway Ranch North G,42163341020000,05:46.5,44:03.0
+Hideaway Ranch North G,1EF,b235cfdd-b35c-4d60-99cb-ef1232e7a260,f243e890-e629-4900-b975-7228082fc81a,Hideaway Ranch North G,42163341020000,37:08.7,06:21.0
+Hideaway Ranch North G,2EF,32d5c1f7-5412-4a3e-810d-34cd0763a3ee,efc9f526-0850-4b52-b0aa-8efb770866cf,Hideaway Ranch North G,42163341030000,37:08.7,06:21.0
+Hideaway Ranch North G,2EF,0746b2ea-a0d0-4156-adbe-332535208bed,efc9f526-0850-4b52-b0aa-8efb770866cf,Hideaway Ranch North G,42163341030000,05:46.5,44:03.0
+Hideaway Ranch North G,2EF,48c10ef7-3ee6-4d27-9251-d08335851205,efc9f526-0850-4b52-b0aa-8efb770866cf,Hideaway Ranch North G,42163341030000,48:00.6,41:11.7
+Hideaway Ranch North G,2EF,32d5c1f7-5412-4a3e-810d-34cd0763a3ee,2366e482-b08e-4f8f-b4cd-0513bd1d07c1,Hideaway Ranch North G,42163341030000,37:08.7,06:21.0
+Hideaway Ranch North G,2EF,0746b2ea-a0d0-4156-adbe-332535208bed,2366e482-b08e-4f8f-b4cd-0513bd1d07c1,Hideaway Ranch North G,42163341030000,05:46.5,44:03.0
+Hideaway Ranch North G,2EF,48c10ef7-3ee6-4d27-9251-d08335851205,2366e482-b08e-4f8f-b4cd-0513bd1d07c1,Hideaway Ranch North G,42163341030000,48:00.6,41:11.7
+Hideaway Ranch North G,3EF,404bab3a-79ad-48d9-a68b-901c7057f29c,82c1b20c-f0e5-40e2-8906-c47fa4fda35b,Hideaway Ranch North G,42163341040000,37:08.7,06:21.0
+Hideaway Ranch North G,3EF,f4742460-4446-4f9c-be82-bcbef33070d4,82c1b20c-f0e5-40e2-8906-c47fa4fda35b,Hideaway Ranch North G,42163341040000,05:46.5,44:03.0
+Hideaway Ranch North G,3EF,404bab3a-79ad-48d9-a68b-901c7057f29c,7510c2d9-cc70-42f9-9b1f-1e9f16c1031c,Hideaway Ranch North G,42163341040000,37:08.7,06:21.0
+Hideaway Ranch North G,3EF,f4742460-4446-4f9c-be82-bcbef33070d4,7510c2d9-cc70-42f9-9b1f-1e9f16c1031c,Hideaway Ranch North G,42163341040000,05:46.5,44:03.0
+Hideaway Ranch North G,3EF,404bab3a-79ad-48d9-a68b-901c7057f29c,02aa3a62-ed57-43de-abc1-32caba3bb760,Hideaway Ranch North G,42163341040000,37:08.7,06:21.0
+Hideaway Ranch North G,3EF,f4742460-4446-4f9c-be82-bcbef33070d4,02aa3a62-ed57-43de-abc1-32caba3bb760,Hideaway Ranch North G,42163341040000,05:46.5,44:03.0
+Hideaway Ranch North G,3EF,404bab3a-79ad-48d9-a68b-901c7057f29c,f191db2d-587e-4823-aa0b-a34f9afbf639,Hideaway Ranch North G,42163341040000,37:08.7,06:21.0
+Hideaway Ranch North G,3EF,f4742460-4446-4f9c-be82-bcbef33070d4,f191db2d-587e-4823-aa0b-a34f9afbf639,Hideaway Ranch North G,42163341040000,05:46.5,44:03.0
+Hideaway Ranch Unit A,#1EF,dc6dc892-b7a6-491e-b52a-55dc58043523,fd568d8e-2f39-465a-bea9-97a756fd47dd,Hideaway Ranch Unit A,42507332180000,55:50.7,24:06.0
+Hideaway Ranch Unit A,#2EF,4cee11af-f2c9-452a-8618-4f9af341a313,f30736f9-d49b-41ce-ae24-0c4b222a48b0,Hideaway Ranch Unit A,42507332270000,56:32.8,24:06.0
+Hideaway Ranch Unit A,#3EF,0ff04953-041b-4de0-9372-e47d1318568c,c6403539-25f2-4f5e-827e-fcd3d2ae3b8f,Hideaway Ranch Unit A,42507332280000,55:50.7,24:06.0
+LMM South C,1EF,7ba63663-c92a-4539-8325-7679505f40a3,70b8fffc-5657-4532-b8cc-f590c7db8287,LMM South C,42507333120000,36:24.8,58:00.0
+LMM South C,2EF,2ac5f95c-77d8-4e18-9426-515903b13f00,5be66c0b-643e-49fd-9953-21533a5b8356,LMM South C,42507333130000,36:24.8,58:00.0
+Norman State 14,3HA,2a61310f-ada8-48b7-ba15-c37b25c85631,e610e3e2-9eb2-4936-96d8-27f1f7b12ac3,Norman State 14,42109335780000,04:44.3,11:30.0
+Norman State 14,3HA,2a61310f-ada8-48b7-ba15-c37b25c85631,1beb7d86-d8db-4639-8113-2896c51031b9,Norman State 14,42109335780000,04:44.3,11:30.0
+Norman State 14,4HA,05d1fe99-ee73-424f-a443-03126a8d6eee,e8e5d2d3-a9c8-4a80-aae1-7d18c30e7d42,Norman State 14,42109335790000,28:33.4,04:09.0
+Norman State 14,4HA,64835a1a-c535-4867-8aae-4f5c56e0fdc9,e8e5d2d3-a9c8-4a80-aae1-7d18c30e7d42,Norman State 14,42109335790000,28:33.4,11:30.0
+Norman State 14,4HA,05d1fe99-ee73-424f-a443-03126a8d6eee,554763ef-0144-4b47-be2e-1c02b3948742,Norman State 14,42109335790000,28:33.4,04:09.0
+Norman State 14,4HA,64835a1a-c535-4867-8aae-4f5c56e0fdc9,554763ef-0144-4b47-be2e-1c02b3948742,Norman State 14,42109335790000,28:33.4,11:30.0
+Norman State 14,6HA,a1137138-780f-4e5f-baf5-a86c576bab45,9ec79ba7-ec6b-478a-b32e-a57941c0f031,Norman State 14,42109335810000,28:33.4,11:30.0
+Norman State 14,6HA,a1137138-780f-4e5f-baf5-a86c576bab45,65c19746-2acf-4817-a43d-490ff8beb763,Norman State 14,42109335810000,28:33.4,11:30.0
+Sola Vaca Norte A,1EF,4d157d33-d812-4d5a-bfb1-7bde1fbbd81f,3bf06e2e-5d1d-4855-a808-53baa1dc1d3e,Sola Vaca Norte A,42507333070000,51:46.1,32:12.0
+Sola Vaca Norte A,2EF,c2ded34d-1784-4acd-91e0-dd4c3d5060b8,7e8d4332-add8-45f5-bbf0-a5f5ee67ccb7,Sola Vaca Norte A,42507333080000,51:46.1,32:12.0
+Sola Vaca Norte A,3EF,858173a7-120a-473f-ab36-4a8b746fc6c3,d99b8150-6df7-43e0-b6f4-e85f035def9e,Sola Vaca Norte A,42507333090000,51:46.1,32:12.0
+Sola Vaca Norte A,4EF,7177b49e-feed-4f1f-91c2-8fb1798dabc8,edabfbcc-3b87-407a-9210-3161edf5fd55,Sola Vaca Norte A,42507333100000,31:56.0,38:11.0
+Sola Vaca Norte A,5EF,7066c0fd-c64f-4dbe-9c4b-e93d1b34ab46,06d4f0b6-fe72-41f8-bd7f-4c63401a7478,Sola Vaca Norte A,42507333550000,31:56.0,38:11.0
+Sola Vaca Norte A,6EF,c5c30cbe-ab6d-4c24-8d49-68bdfd5514b9,3169e9d2-bc6f-49c5-87f0-24c961b44cdc,Sola Vaca Norte A,42507333560000,31:56.0,38:11.0
+Sola Vaca Norte A,6EF,c5c30cbe-ab6d-4c24-8d49-68bdfd5514b9,40b0e539-4847-4d2e-81e8-dfe857812168,Sola Vaca Norte A,42507333560000,31:56.0,38:11.0
+Stumberg Ranch,12H,5e906cd1-b813-4722-bbd3-7589054aa86d,70eac867-289b-47ba-ac85-ba31d4f2dea3,Stumberg Ranch 10H Pad,42127342340000,48:00.6,41:11.7
+Stumberg Ranch,12H,5e906cd1-b813-4722-bbd3-7589054aa86d,474f470c-f480-4c30-984c-41ac827b82c5,Stumberg Ranch 10H Pad,42127342340000,48:00.6,41:11.7
+frac score test,1,5cd9ed02-3044-4446-82cf-2b02b8093d5a,66b378a7-8d4a-4321-b582-15b886e0685a,frac score test,987654321,32:48.7,04:19.8
+sanchez test well,1,4f921f11-491a-4ed7-9fe1-c9f3f7574656,81236079-e69a-4a59-88a3-954adba652a9,sanchez test pad,340923409234,38:34.1,45:16.6
+sanchez test well,1,d6d4f604-8932-4a09-bf29-efe008c6372d,81236079-e69a-4a59-88a3-954adba652a9,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,209b96ca-5010-4de8-8f68-74ee0d541147,81236079-e69a-4a59-88a3-954adba652a9,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,345d32b5-db09-4704-85f9-a04c1b3c653b,81236079-e69a-4a59-88a3-954adba652a9,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,52506ab7-5029-4a1b-9322-8a6057ba72fa,81236079-e69a-4a59-88a3-954adba652a9,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,4f921f11-491a-4ed7-9fe1-c9f3f7574656,6aaa4a10-c1dc-4c07-a035-a8105c22a981,sanchez test pad,340923409234,38:34.1,45:16.6
+sanchez test well,1,d6d4f604-8932-4a09-bf29-efe008c6372d,6aaa4a10-c1dc-4c07-a035-a8105c22a981,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,209b96ca-5010-4de8-8f68-74ee0d541147,6aaa4a10-c1dc-4c07-a035-a8105c22a981,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,345d32b5-db09-4704-85f9-a04c1b3c653b,6aaa4a10-c1dc-4c07-a035-a8105c22a981,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,52506ab7-5029-4a1b-9322-8a6057ba72fa,6aaa4a10-c1dc-4c07-a035-a8105c22a981,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,4f921f11-491a-4ed7-9fe1-c9f3f7574656,eca41709-5fd0-4c21-8adb-ea7ead059794,sanchez test pad,340923409234,38:34.1,45:16.6
+sanchez test well,1,d6d4f604-8932-4a09-bf29-efe008c6372d,eca41709-5fd0-4c21-8adb-ea7ead059794,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,209b96ca-5010-4de8-8f68-74ee0d541147,eca41709-5fd0-4c21-8adb-ea7ead059794,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,345d32b5-db09-4704-85f9-a04c1b3c653b,eca41709-5fd0-4c21-8adb-ea7ead059794,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,52506ab7-5029-4a1b-9322-8a6057ba72fa,eca41709-5fd0-4c21-8adb-ea7ead059794,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,4f921f11-491a-4ed7-9fe1-c9f3f7574656,07556ff8-810b-488a-9712-e11a8d9ed68d,sanchez test pad,340923409234,38:34.1,45:16.6
+sanchez test well,1,d6d4f604-8932-4a09-bf29-efe008c6372d,07556ff8-810b-488a-9712-e11a8d9ed68d,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,209b96ca-5010-4de8-8f68-74ee0d541147,07556ff8-810b-488a-9712-e11a8d9ed68d,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,345d32b5-db09-4704-85f9-a04c1b3c653b,07556ff8-810b-488a-9712-e11a8d9ed68d,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,52506ab7-5029-4a1b-9322-8a6057ba72fa,07556ff8-810b-488a-9712-e11a8d9ed68d,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,4f921f11-491a-4ed7-9fe1-c9f3f7574656,1be657a0-0d07-4d3a-b440-6112649be8a6,sanchez test pad,340923409234,38:34.1,45:16.6
+sanchez test well,1,d6d4f604-8932-4a09-bf29-efe008c6372d,1be657a0-0d07-4d3a-b440-6112649be8a6,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,209b96ca-5010-4de8-8f68-74ee0d541147,1be657a0-0d07-4d3a-b440-6112649be8a6,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,345d32b5-db09-4704-85f9-a04c1b3c653b,1be657a0-0d07-4d3a-b440-6112649be8a6,sanchez test pad,340923409234,31:34.4,13:31.7
+sanchez test well,1,52506ab7-5029-4a1b-9322-8a6057ba72fa,1be657a0-0d07-4d3a-b440-6112649be8a6,sanchez test pad,340923409234,31:34.4,13:31.7
