@@ -18,13 +18,13 @@ import threading
 import psycopg2 as pg
 import psycopg2.extras
 import uuid
-import s3_models
+import utils.s3_models
 import psutil
 import csv
 import argparse
 import dateutil
 
-from dynamic_utils import DynamicRingBuffer, parse_time_string_with_colon_offset, interval_to_buckets, timebucket_files, s3_path_to_datetime, get_npz, interval_to_flat_array
+from utils.dynamic_utils import DynamicRingBuffer, parse_time_string_with_colon_offset, interval_to_buckets, timebucket_files, s3_path_to_datetime, get_npz, interval_to_flat_array
 
 logging.basicConfig(format='%(levelname)s %(asctime)s: %(message)s', level=logging.INFO)
 logging.getLogger("schedule").setLevel(logging.WARNING)
