@@ -241,14 +241,16 @@ def interval_to_buckets(start, end):
         current_time += timedelta(seconds=increment)
     return sorted(set(timebuckets))
 
-
-def get_npz(key):
+def get_npz(key, target_sample_rate=None):
     "Returns numpy array from npz on s3"
     with io.BytesIO() as f:
         s3_bucket.download_fileobj(key, f)
         f.seek(0)
         data = np.load(f)['arr_0']
-        return data
+        if target_sample_rate:
+            return signal.resample(data, target_sample_rate)
+        else:
+            return data
 
 
 def s3_path_to_datetime(path):
@@ -280,7 +282,7 @@ def interval_to_flat_array(sensor_id, start, end, target_sample_rate=40000, mult
             files = [val for sublist in files for val in sublist]
             files_within_interval = [f for f in files if within_interval(f)]
             logging.debug("Downloading " + str(len(files_within_interval)) +  " files")
-            arrays = pool.map(get_npz, files_within_interval)
+            arrays = pool.starmap(get_npz, [(f, target_sample_rate) for f in files_within_interval])
 
     else:
         with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
@@ -289,7 +291,7 @@ def interval_to_flat_array(sensor_id, start, end, target_sample_rate=40000, mult
             files = [val for sublist in files for val in sublist]
             files_within_interval = [f for f in files if within_interval(f)]
             logging.debug("Downloading " + str(len(files_within_interval)) +  " files")
-            arrays = executor.map(get_npz, files_within_interval)
+            arrays = executor.map(get_npz, files_within_interval, [target_sample_rate for f in files_within_interval])
 
     logging.debug("time to download: " + str(time.time() - t0))
 
@@ -305,19 +307,18 @@ def interval_to_flat_array(sensor_id, start, end, target_sample_rate=40000, mult
         buffer = DynamicRingBuffer(buffer_size)
 
         for s3_path, array in zip(files_within_interval, arrays):
-            resampled = signal.resample(array, target_sample_rate)
 
             if s3_path == files_within_interval[0]:
                 num_dropped_samples = int(file_start_delta.total_seconds() * target_sample_rate)
-                data_to_append = resampled[num_dropped_samples:]
+                data_to_append = array[num_dropped_samples:]
 
             elif s3_path == files_within_interval[-1]:
                 end_delta = (end - last_file_time)
                 num_dropped_samples = int(file_end_delta.total_seconds() * target_sample_rate)
-                data_to_append = resampled[0: target_sample_rate - num_dropped_samples]
+                data_to_append = array[0: target_sample_rate - num_dropped_samples]
 
             else:
-                data_to_append = resampled
+                data_to_append = array
 
             buffer.append(data_to_append)
 
@@ -330,4 +331,4 @@ def interval_to_flat_array(sensor_id, start, end, target_sample_rate=40000, mult
         if return_secs_downloaded:
             return np.array([]), 0
         else:
-            return buffer
+            return np.array([])
