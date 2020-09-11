@@ -33,4 +33,4 @@ docker run -d --restart=always                                    \
        --name model-runner-$env                                   \
        --network="host"                                           \
        docker.originrose.com/legend-model-runner:latest           \
-       /root/.poetry/bin/poetry run python /model_runner/model_runner.py
+       /root/.poetry/bin/poetry run python model_runner.py

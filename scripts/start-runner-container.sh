@@ -32,4 +32,4 @@ docker run -d --restart=always                                    \
        -e AWS_SECRET_ACCESS_KEY=$secret_key                       \
        --name model-runner-$env                                   \
        docker.originrose.com/legend-model-runner:latest           \
-       /root/.poetry/bin/poetry run python /model_runner/model_runner.py
+       /root/.poetry/bin/poetry run python model_runner.py

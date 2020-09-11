@@ -12,8 +12,6 @@ import boto3
 import multiprocessing as mp
 import concurrent.futures
 
-import db
-
 import schedule
 from abc import ABC, abstractmethod
 import threading
