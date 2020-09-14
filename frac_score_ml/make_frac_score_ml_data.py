@@ -4,7 +4,7 @@ import pandas as pd
 from ml_utils import make_frac_score_data_non_events, make_frac_score_data_set
 
 
-# run through all events in combined efficiency report, for all recorded wells
+# run through all events in combined efficiency report, from all recorded wells
 
 df_well_ids = pd.read_csv('wells3Sept2020.csv')
 df_eff_report = pd.read_csv('fracPops_effReport_allPads_4Sept2020.csv')
@@ -22,7 +22,8 @@ make_frac_score_data_set(df_well_ids,
                          df_eff_report,
                          num_windows_per_stage,
                          counting_window_secs,
-                         std_m, distance_val,
+                         std_m,
+                         distance_val,
                          time_before_pop_secs,
                          time_after_pop_secs)
 
@@ -34,6 +35,7 @@ make_frac_score_data_non_events(df_well_ids,
                                 df_eff_report,
                                 num_windows_per_stage,
                                 counting_window_secs,
-                                std_m, distance_val,
+                                std_m,
+                                distance_val,
                                 time_before_pop_secs,
                                 time_after_pop_secs)
