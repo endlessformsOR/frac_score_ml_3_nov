@@ -3,8 +3,8 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras import layers
 from datetime import datetime
 from dynamic_utils import interval_to_flat_array_resample, parse_time_string_with_colon_offset
-from usefulmethods import fetch_sensor_db_data, parse_time_string_with_colon_offset, mkDataTimeFromStr, dtObj2str
-import datetime
+rom usefulmethods import fetch_sensor_db_data, parse_time_string_with_colon_offset, \
+    mk_data_time_from_str, dt_obj_to_strimport datetime
 import random
 import scipy.signal as signal
 from scipy.signal import butter, sosfilt, lfilter
