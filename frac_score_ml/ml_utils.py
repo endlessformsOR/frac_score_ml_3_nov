@@ -221,8 +221,12 @@ def make_frac_score_data_non_events(df_well_ids, df_eff_report, num_windows_per_
 
                             # now add all the good stuff
 
-                            non_events_obj.append(
-                                [well_name, api, stage, dt_obj_to_str(window_start), dt_obj_to_str(window_stop), x_d_win])
+                            non_events_obj.append([well_name,
+                                                   api,
+                                                   stage,
+                                                   dt_obj_to_str(window_start),
+                                                   dt_obj_to_str(window_stop),
+                                                   x_d_win])
 
                         else:
 
