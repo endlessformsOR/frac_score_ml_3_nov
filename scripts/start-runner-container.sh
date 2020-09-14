@@ -6,6 +6,7 @@ db_creds_path=secret/legend/sql/legend-${env}
 
 db_name=$(vault read -field=dbname ${db_creds_path})
 db_host=$(vault read -field=host ${db_creds_path})
+db_private_ip=$(vault read -field=private-ip ${db_creds_path})
 db_password=$(vault read -field=password ${db_creds_path})
 db_port=$(vault read -field=port ${db_creds_path})
 db_user=$(vault read -field=user ${db_creds_path})
@@ -23,7 +24,7 @@ docker run -d --restart=always                                    \
        -v /data:/srv/data                                         \
        -e VAULT_ADDR="https://vault.originrose.com:8200"          \
        -e LEGEND_ENV=$env                                         \
-       -e db_host=$db_host                                        \
+       -e db_host=$db_private_ip                                  \
        -e db_name=$db_name                                        \
        -e db_user=$db_user                                        \
        -e db_password=$db_password                                \
