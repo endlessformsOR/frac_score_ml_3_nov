@@ -3,8 +3,9 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras import layers
 from datetime import datetime
 from dynamic_utils import interval_to_flat_array_resample, parse_time_string_with_colon_offset
-rom usefulmethods import fetch_sensor_db_data, parse_time_string_with_colon_offset, \
-    mk_data_time_from_str, dt_obj_to_strimport datetime
+from usefulmethods import fetch_sensor_db_data, parse_time_string_with_colon_offset, \
+    mk_data_time_from_str, dt_obj_to_str
+import datetime
 import random
 import scipy.signal as signal
 from scipy.signal import butter, sosfilt, lfilter
@@ -18,7 +19,7 @@ Use this file to build ml training and testing datasets from all pads and wells 
 # build training and testing data with this function
 
 def load_ml_data_pops(pops_filename, non_pops_filename, window_size_secs, train_test_split_percent):
-    # load npy file WN,Api,stage,dtObj2str(window_start),dtObj2str(window_stop),x_d_win
+    # load npy file WN,Api,stage,dt_obj_to_str(window_start),dt_obj_to_str(window_stop),x_d_win
 
     print('loading data, this may take some time...')
 
@@ -197,8 +198,8 @@ def make_frac_score_data_non_events(df_well_ids, df_eff_report, num_windows_per_
                         print('utc end: ' + utc_end)
 
                         rdm_window_utc_start, rdm_window_utc_stop = mk_random_windows(counting_window_secs,
-                                                                                    int(float(stamped_time)),
-                                                                                    utc_start)
+                                                                                      int(float(stamped_time)),
+                                                                                      utc_start)
 
                         # now make data
 
@@ -211,7 +212,7 @@ def make_frac_score_data_non_events(df_well_ids, df_eff_report, num_windows_per_
 
                             # just pull a window
 
-                            activation_time = mkDataTimeFromStr(rdm_window_utc_start)
+                            activation_time = mk_data_time_from_str(rdm_window_utc_start)
                             window_start = activation_time - dt.timedelta(seconds=time_before_pop_secs)
                             window_stop = activation_time + dt.timedelta(seconds=time_after_pop_secs)
                             # pull new data
@@ -221,7 +222,7 @@ def make_frac_score_data_non_events(df_well_ids, df_eff_report, num_windows_per_
                             # now add all the good stuff
 
                             non_events_obj.append(
-                                [well_name, api, stage, dtObj2str(window_start), dtObj2str(window_stop), x_d_win])
+                                [well_name, api, stage, dt_obj_to_str(window_start), dt_obj_to_str(window_stop), x_d_win])
 
                         else:
 
@@ -370,10 +371,10 @@ def mk_random_windows(window_size, stamped_time, utc_start):
 
     # print('new start: ', new_start)
 
-    rdm_window_utc_start = mkDataTimeFromStr(utc_start) + dt.timedelta(seconds=60 * new_start)
+    rdm_window_utc_start = mk_data_time_from_str(utc_start) + dt.timedelta(seconds=60 * new_start)
     rdm_window_utc_stop = rdm_window_utc_start + dt.timedelta(seconds=window_size)
 
-    return dtObj2str(rdm_window_utc_start), dtObj2str(rdm_window_utc_stop)
+    return dt_obj_to_str(rdm_window_utc_start), dt_obj_to_str(rdm_window_utc_stop)
 
 
 def print_out_well_job_info(well_name, api, reason, start_date, start_time, end_date, end_time, stage, stamped_time,
@@ -461,8 +462,8 @@ def make_frac_score_data_set(df_well_ids, df_eff_report,
                     print('utc end: ' + utc_end)
 
                     rdm_window_utc_start, rdm_window_utc_stop = mk_random_windows(counting_window_secs,
-                                                                                int(float(stamped_time)),
-                                                                                utc_start)
+                                                                                  int(float(stamped_time)),
+                                                                                  utc_start)
                     # now make data
 
                     x_d, t_d, x_s, t_s, sampling_rate, seconds = make_data(dyn_id,
@@ -482,7 +483,7 @@ def make_frac_score_data_set(df_well_ids, df_eff_report,
                             if pk > 0.01 * sampling_rate:
                                 activation_second = t_d[pk]
 
-                                activation_time = mkDataTimeFromStr(rdm_window_utc_start) + dt.timedelta(
+                                activation_time = mk_data_time_from_str(rdm_window_utc_start) + dt.timedelta(
                                     seconds=activation_second)
 
                                 # write time before and after
@@ -499,8 +500,8 @@ def make_frac_score_data_set(df_well_ids, df_eff_report,
                                 frac_score_pops_all_pads.append([well_name,
                                                                  api,
                                                                  stage,
-                                                                 dtObj2str(window_start),
-                                                                 dtObj2str(window_stop),
+                                                                 dt_obj_to_str(window_start),
+                                                                 dt_obj_to_str(window_stop),
                                                                  x_d_win])
 
                     else:
