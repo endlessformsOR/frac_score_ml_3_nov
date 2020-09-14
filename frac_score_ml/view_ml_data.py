@@ -1,181 +1,98 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pylab
-from matplotlib import cm
 import random
+
+"""
+Use this to quickly visualize the event datasets stored as .npy files
+"""
 
 # open file 7000 pops, 5.2 GB
 
-detectedPops = np.load('fracScore_allPads_08_09_pop_events.npy', allow_pickle=True)
+detectedPops = np.load('raw_ml_data/fracScore_allPads_08_09_pop_events.npy', allow_pickle=True)
 
 # need to adjust, 5788 nonevents, filesize is 4.3 GB
 
-notPops = np.load('fracScore_allPads_non_events10_09_2020_T02_10_22.npy', allow_pickle=True)
+notPops = np.load('raw_ml_data/fracScore_allPads_non_events10_09_2020_T02_10_22.npy', allow_pickle=True)
 
 # set axis dims
 
 fig_x = 25
-fig_y = 5
+fig_y = 10
+F_MIN = 1
+F_MAX = 2000
+CUTOFF_FREQ = 10
+COLORMAP = 'jet_r'
+TIME_SAMPLE_WINDOW = .1
+OVERLAP_FACTOR = 10
+sampling_rate = 40000
+n_FFT = int(sampling_rate * TIME_SAMPLE_WINDOW)  # 5ms window
+n_overlap = int(sampling_rate * (TIME_SAMPLE_WINDOW / OVERLAP_FACTOR))
 
 # view detected pop events
 
-ignoreEvents = []
-
-sampling_rate = 40000
-
 print('number of pops detected: ' + str(len(detectedPops)))
 
-# look at 200 random events in list
-for i in range(100):
 
+def plot_event(index, data_object, event_type):
+    well_name = data_object[index][0]
+    api = data_object[index][1]
+    start = data_object[index][3]
+    stop = data_object[index][4]
+    values_array = data_object[index][5]
+
+    out_text = 'pop event: ' + str(index) + '\n'
+    out_text += 'WN: ' + well_name + '\n'
+    out_text += 'API: ' + api + '\n'
+    out_text += 'start: ' + start + '\n'
+    out_text += 'stop: ' + stop + '\n'
+
+    if event_type == 'pop':
+        stage = data_object[i][2]
+        out_text += 'stage: ' + str(stage) + '\n'
+
+    measured_time = len(values_array) / sampling_rate
+    time_array = np.linspace(0, measured_time, len(values_array))
+
+    # subplot stuff
+
+    fig, axs = plt.subplots(2, 1, figsize=(fig_x, fig_y))
+
+    # spectrogram
+    axs[0].set_title('Spectrogram ', fontsize=18, color='black')
+    axs[0].specgram(values_array, NFFT=n_FFT, Fs=sampling_rate, noverlap=n_overlap, cmap=pylab.get_cmap(COLORMAP))
+    axs[0].set_ylabel('Frequency in Hz')
+    axs[0].axis([0, measured_time, F_MIN, F_MAX])
+
+    # 1st plot, dynamic signal
+
+    axs[1].set_title('Dynamic Pressure Signal ', fontsize=18, color='black')
+    axs[1].plot(time_array, values_array, color='black', label='dyn, raw', zorder=1)
+    axs[1].axis([0, measured_time, np.nanmin(values_array), np.nanmax(values_array)])
+    axs[1].legend(loc='upper right')
+    axs[1].text(1, 0.6 * min(values_array), out_text, fontsize=11, verticalalignment='center')
+    axs[1].set_ylabel('Rel. Mag.')
+
+    plt.show()
+
+
+# look at 20 random events in list
+
+for z in range(20):
     i = random.randrange(len(detectedPops))
+
     print('look at: ' + str(i))
 
-    if any(i == j for j in ignoreEvents) == False: # move past any index elements in the ignoreEvents list
-
-        WN = detectedPops[i][0]
-        api = detectedPops[i][1]
-        stage = detectedPops[i][2]
-        start = detectedPops[i][3]
-        stop = detectedPops[i][4]
-        vals = detectedPops[i][5]
-
-        outText = 'pop event: ' + str(i) + '\n'
-        outText += 'WN: ' + WN + '\n'
-        outText += 'API: ' + api + '\n'
-        outText += 'start: ' + start + '\n'
-        outText += 'stop: ' + stop + '\n'
-        outText += 'stage: ' + str(stage) + '\n'
-
-        measuredTime = len(vals)/sampling_rate
-
-        timeVals = np.linspace(0,measuredTime,len(vals))
-
-        # spectro details
-
-        #
-        # Optimal vals so far
-        #
-        #TIME_SAMPLE_WINDOW = .5
-        #OVERLAP_FACTOR = 500
-
-
-        # try to find better ones
-
-        TIME_SAMPLE_WINDOW = .05
-        OVERLAP_FACTOR = 50
-
-        NFFT = int(sampling_rate*TIME_SAMPLE_WINDOW)  # 5ms window
-        noverlap = int(sampling_rate*(TIME_SAMPLE_WINDOW / OVERLAP_FACTOR))
-
-        CUTOFF_FREQ = 10
-        # sepctro figure stuff
-
-        F_MIN = 10
-        F_MAX = 400
-
-        COLORMAP = 'jet_r'
-
-
-
-        # subplots stuff
-
-        fig, axs = plt.subplots(2,1,figsize=(fig_x,fig_y))
-        #fig.suptitle(outText)
-
-
-
-        # Spectro, filtered
-        axs[0].set_title('Spectrogram ', fontsize = 18, color='black')
-        axs[0].specgram(vals, NFFT=NFFT, Fs=sampling_rate, noverlap=noverlap, cmap=pylab.get_cmap(COLORMAP))
-        #axs[1].specgram(vals, NFFT=None, Fs=sampling_rate, noverlap=128, cmap=pylab.get_cmap(COLORMAP))
-        #axs[0].set_title('Filtered, f < 1000 Hz')
-        #axs[0].set_xlabel('Elapsed time, Seconds')
-        axs[0].set_ylabel('Frequency in Hz')
-        axs[0].axis([0,measuredTime,F_MIN,F_MAX])
-
-
-        # 1st plot, dynamic signal
-
-        axs[1].set_title('Dynamic Pressure Signal ', fontsize = 18, color='black')
-        axs[1].plot(timeVals, vals, color='black', label = 'dyn, raw',zorder=1)
-        #axs[1].plot(timeVals, dyn_fitrd_bp, color='red', label = 'dyn, bandpass filtered',zorder=1, linewidth=4)
-        axs[1].axis([0 ,measuredTime, np.nanmin(vals), np.nanmax(vals)])
-        axs[1].legend(loc='upper right')
-        axs[1].text(1,0.6*min(vals),outText,fontsize=11,verticalalignment='center')
-        #axs[1].text(int(measuredTime/2),0.6*min(vals),outText,fontsize=11,verticalalignment='center')
-        #axs[1].set_xlabel('Elapsed time, Seconds')
-        axs[1].set_ylabel('Rel. Mag.')
-
-        plt.show()
+    plot_event(i, detectedPops, 'pop')
 
 # now view non events
 
 print('number of non pops detected: ' + str(len(notPops)))
 
-# look at first 20
-for i in range(100):
+# look at 20 arrays, pick randomly
 
+for r in range(20):
     i = random.randrange(len(notPops))
     print('look at nonevent: ' + str(i))
 
-    if any(i == j for j in ignoreEvents) == False: # move past any index elements in the ignoreEvents list
-
-        WN = notPops[i][0]
-        api = notPops[i][1]
-        stage = notPops[i][2]
-        start = notPops[i][3]
-        stop = notPops[i][4]
-        vals = notPops[i][5]
-
-        outText = 'pop event: ' + str(i) + '\n'
-        outText += 'WN: ' + WN + '\n'
-        outText += 'API: ' + api + '\n'
-        outText += 'start: ' + start + '\n'
-        outText += 'stop: ' + stop + '\n'
-        #outText += 'stage: ' + str(stage) + '\n'
-
-        measuredTime = len(vals)/sampling_rate
-
-        timeVals = np.linspace(0,measuredTime,len(vals))
-
-        # spectro stuff
-
-        TIME_SAMPLE_WINDOW = .05
-        OVERLAP_FACTOR = 50
-
-        NFFT = int(sampling_rate*TIME_SAMPLE_WINDOW)  # 5ms window
-        noverlap = int(sampling_rate*(TIME_SAMPLE_WINDOW / OVERLAP_FACTOR))
-
-        CUTOFF_FREQ = 10
-
-        # subplots stuff
-
-        fig, axs = plt.subplots(2,1,figsize=(fig_x,fig_y))
-        #fig.suptitle(outText)
-
-
-
-        # Spectro, filtered
-        axs[0].set_title('Spectrogram ', fontsize = 18, color='black')
-        axs[0].specgram(vals, NFFT=NFFT, Fs=sampling_rate, noverlap=noverlap, cmap=pylab.get_cmap(COLORMAP))
-        #axs[1].specgram(vals, NFFT=None, Fs=sampling_rate, noverlap=128, cmap=pylab.get_cmap(COLORMAP))
-        #axs[0].set_title('Filtered, f < 1000 Hz')
-        #axs[0].set_xlabel('Elapsed time, Seconds')
-        axs[0].set_ylabel('Frequency in Hz')
-        axs[0].axis([0,measuredTime,F_MIN,F_MAX])
-
-
-        # 1st plot, dynamic signal
-
-        axs[1].set_title('Dynamic Pressure Signal ', fontsize = 18, color='black')
-        axs[1].plot(timeVals, vals, color='black', label = 'dyn, raw',zorder=1)
-        #axs[1].plot(timeVals, dyn_fitrd_bp, color='red', label = 'dyn, bandpass filtered',zorder=1, linewidth=4)
-        axs[1].axis([0 ,measuredTime, np.nanmin(vals), np.nanmax(vals)])
-        axs[1].legend(loc='upper right')
-        axs[1].text(1,0.6*min(vals),outText,fontsize=11,verticalalignment='center')
-        #axs[1].text(int(measuredTime/2),0.6*min(vals),outText,fontsize=11,verticalalignment='center')
-        #axs[1].set_xlabel('Elapsed time, Seconds')
-        axs[1].set_ylabel('Rel. Mag.')
-
-        plt.show()
+    plot_event(i, detectedPops, 'non')
