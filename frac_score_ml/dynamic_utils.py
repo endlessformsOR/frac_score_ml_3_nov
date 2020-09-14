@@ -13,7 +13,6 @@ from scipy import signal
 import csv
 from numpy_ringbuffer import RingBuffer
 
-
 S3_BUCKET = "sensor-data-live"
 ACCESS_KEY = os.environ['AWS_ACCESS_KEY_ID']
 SECRET_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
@@ -21,8 +20,8 @@ SECRET_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
 S3_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 NPZ_TIME_FORMAT = S3_TIME_FORMAT + ".npz"
 
-#define these globally so we can parellize fetching data fns
-#otherwise get cannot pickle class errors
+# define these globally so we can parallelize fetching data fns
+# otherwise get cannot pickle class errors
 s3_resource = boto3.resource('s3',
                              aws_access_key_id=ACCESS_KEY,
                              aws_secret_access_key=SECRET_KEY)
@@ -47,19 +46,18 @@ class DynamicRingBuffer(RingBuffer):
 	If false, throw an IndexError when trying to append to an already
 	full buffer
     """
+
     def __init__(self, capacity, dtype=np.float32, allow_overwrite=True):
         super().__init__(capacity, dtype, allow_overwrite)
 
-
     def append(self, v):
         if np.isscalar(v):
-            RingBuffer.append(self,v)
+            RingBuffer.append(self, v)
         else:
             self.append_vector(v)
 
-
     def append_vector(self, v):
-        v = v[:] #be able to append other RingBuffers
+        v = v[:]  # be able to append other RingBuffers
 
         if self._capacity > self._right_index:
             num_fits_in_end = min(len(v), self._capacity - self._right_index)
@@ -67,19 +65,17 @@ class DynamicRingBuffer(RingBuffer):
             num_fits_in_end = 0
         num_doesnt_fit = len(v) - num_fits_in_end
 
-        #add data that fits in end of buffer
+        # add data that fits in end of buffer
         if num_fits_in_end > 0:
-            self._arr[self._right_index : self._right_index + num_fits_in_end] = v[:num_fits_in_end]
+            self._arr[self._right_index: self._right_index + num_fits_in_end] = v[:num_fits_in_end]
         self._right_index += num_fits_in_end
 
-
-        #if we try to add more data that cant fit at end of buffer wrap concat it and resize buffer
+        # if we try to add more data that cant fit at end of buffer wrap concat it and resize buffer
         if num_doesnt_fit > 0:
             self._arr = np.concatenate((self._arr, v[num_fits_in_end:]))
             self._arr = self._arr[-self._capacity:]
             self._right_index = self._capacity
             self._left_index = 0
-
 
     def popn(self, n):
         if len(self) < n:
@@ -89,12 +85,11 @@ class DynamicRingBuffer(RingBuffer):
             res = self.pop()
 
         else:
-            res = self[self._capacity - n : self._capacity]
+            res = self[self._capacity - n: self._capacity]
 
         self._right_index -= n
         self._fix_indices()
         return res
-
 
     def popleftn(self, n):
         if len(self) < n:
@@ -106,7 +101,6 @@ class DynamicRingBuffer(RingBuffer):
         else:
             res = self[self._left_index: self._left_index + n]
 
-
         self._left_index += n
         self._fix_indices()
 
@@ -115,7 +109,9 @@ class DynamicRingBuffer(RingBuffer):
     def values(self):
         return np.array(self)
 
-def interval_to_flat_array_resample(sensor_id, start, end, target_sample_rate=40000, multiprocessing=True, return_num_files=False):
+
+def interval_to_flat_array_resample(sensor_id, start, end, target_sample_rate=40000, multiprocessing=True,
+                                    return_num_files=False):
     """Returns all dynamic data for a sensor_id, start, and end time in a ring buffer
      Resamples data to target_sample_rate"""
 
@@ -136,38 +132,39 @@ def interval_to_flat_array_resample(sensor_id, start, end, target_sample_rate=40
             files = pool.starmap(timebucket_files, [(sensor_id, timebucket) for timebucket in timebuckets])
             files = [val for sublist in files for val in sublist]
             files_within_interval = [f for f in files if within_interval(f)]
-            print("Downloading " + str(len(files_within_interval)) +  " files")
-            #arrays = pool.map(get_npz, files_within_interval)
+            print("Downloading " + str(len(files_within_interval)) + " files")
+            # arrays = pool.map(get_npz, files_within_interval)
             arrays = pool.starmap(get_npz, [(f, target_sample_rate) for f in files_within_interval])
 
     else:
         with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
             sensor_ids = [sensor_id for i in range(len(timebuckets))]
-            files = executor.map(timebucket_files, sensor_ids, timebuckets)            
+            files = executor.map(timebucket_files, sensor_ids, timebuckets)
             files = [val for sublist in files for val in sublist]
-            files_within_interval = [f for f in files if within_interval(f)]            
-            print("Downloading " + str(len(files_within_interval)) +  " files")
-            #arrays = executor.map(get_npz, files_within_interval)
+            files_within_interval = [f for f in files if within_interval(f)]
+            print("Downloading " + str(len(files_within_interval)) + " files")
+            # arrays = executor.map(get_npz, files_within_interval)
             arrays = executor.map(get_npz, files_within_interval, [target_sample_rate for f in files_within_interval])
-            
+
     print("time to download: " + str(time.time() - t0))
-    
+
     if files_within_interval:
 
-        #Need to handle when requeted start,end dont align with uploaded file times
-        last_file_time = s3_path_to_datetime(files_within_interval[-1]).replace(microsecond=0) #sometimes filename timestamp is off by a few microseconds
+        # Need to handle when requeted start,end dont align with uploaded file times
+        last_file_time = s3_path_to_datetime(files_within_interval[-1]).replace(
+            microsecond=0)  # sometimes filename timestamp is off by a few microseconds
         downloaded_data_end_time = last_file_time + timedelta(seconds=1)
         file_end_delta = downloaded_data_end_time - end
         file_start_delta = (start - file_start)
-  
+
         buffer_size = int(target_sample_rate * (end - start).total_seconds())
         buffer = DynamicRingBuffer(buffer_size)
 
         for s3_path, array in zip(files_within_interval, arrays):
-            #resampled = signal.resample(array, target_sample_rate)        
-            #array = signal.resample(array, target_sample_rate)
-    
-            if s3_path == files_within_interval[0]:            
+            # resampled = signal.resample(array, target_sample_rate)
+            # array = signal.resample(array, target_sample_rate)
+
+            if s3_path == files_within_interval[0]:
                 num_dropped_samples = int(file_start_delta.total_seconds() * target_sample_rate)
                 data_to_append = array[num_dropped_samples:]
 
@@ -178,7 +175,7 @@ def interval_to_flat_array_resample(sensor_id, start, end, target_sample_rate=40
 
             else:
                 data_to_append = array
-                
+
             buffer.append(data_to_append)
 
         if return_num_files:
@@ -190,7 +187,7 @@ def interval_to_flat_array_resample(sensor_id, start, end, target_sample_rate=40
             return DynamicRingBuffer(0), 0
         else:
             return DynamicRingBuffer(0)
-        
+
 
 def datetime_to_s3_time_bucket(dt):
     "Generates the 10-second timebucket we use on s3"
@@ -218,7 +215,7 @@ def interval_to_buckets(start, end):
     "generates timebucket strings from datetime objects"
     delta = end - start
 
-    #ensure all buckets are found when interval overlaps buckets and less than 10 seconds
+    # ensure all buckets are found when interval overlaps buckets and less than 10 seconds
     if delta.seconds < 10:
         increment = delta.seconds
     else:
@@ -253,14 +250,16 @@ def s3_path_to_datetime(path):
     t_utc = pytz.utc.localize(t)
     return t_utc
 
+
 def load_csv(fpath):
     with open(fpath) as csvfile:
         reader = csv.DictReader(csvfile)
         return list(reader)
+
 
 def csv_row_to_dynamic_data(csv, rownum):
     row = csv[rownum]
     start_time = parse_time_string_with_colon_offset(row['START_TIME'])
     end_time = parse_time_string_with_colon_offset(row['END_TIME'])
     sensor_id = row['DYNAMIC_SENSOR_ID']
-    return interval_to_flat_array(sensor_id, start_time, end_time)
+    return interval_to_flat_array_resample(sensor_id, start_time, end_time)
