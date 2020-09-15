@@ -7,6 +7,8 @@ import random
 Use this to quickly visualize the event datasets stored as .npy files
 """
 
+# TEST, added this line via pycharm. lets see if the push to git was successful...
+
 # open file 7000 pops, 5.2 GB
 
 detectedPops = np.load('raw_ml_data/fracScore_allPads_08_09_pop_events.npy', allow_pickle=True)
